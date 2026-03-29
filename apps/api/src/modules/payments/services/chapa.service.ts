@@ -7,7 +7,11 @@ type ChapaInitResponse = {
   status?: string;
 };
 
-export async function initiateChapa(
+/**
+ * Chapa initialize via REST. Official SDK (chapa-nodejs) can replace this call later;
+ * the payload matches Chapa's transaction initialize API.
+ */
+export async function initiateChapaTransaction(
   dto: ChapaInitializeDto,
 ): Promise<
   | { ok: true; data: { checkoutUrl: string; txRef: string } }
@@ -19,10 +23,12 @@ export async function initiateChapa(
       ok: false,
       status: 503,
       code: "chapa_not_configured",
-      message: "Set CHAPA_SECRET_KEY (and optional CHAPA_BASE_URL)",
+      message: "Set CHAPA_SECRET_KEY",
     };
   }
 
+  const base = env.baseUrl.replace(/\/$/, "");
+  const url = `${base}/transaction/initialize`;
   const payload = {
     amount: dto.amount,
     currency: dto.currency,
@@ -39,8 +45,6 @@ export async function initiateChapa(
   };
 
   try {
-    const base = env.baseUrl.replace(/\/$/, "");
-    const url = `${base}/transaction/initialize`;
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -75,4 +79,25 @@ export async function initiateChapa(
       message,
     };
   }
+}
+
+/** Best-effort parse for Chapa webhook / redirect payloads (shape varies by integration). */
+export function parseChapaWebhook(body: unknown): {
+  txRef: string | null;
+  status: string | null;
+  amount: string | null;
+} {
+  const o = body as Record<string, unknown>;
+  const data = (o.data ?? o) as Record<string, unknown>;
+  const txRef =
+    (typeof data.tx_ref === "string" && data.tx_ref) ||
+    (typeof o.tx_ref === "string" && o.tx_ref) ||
+    null;
+  const status =
+    (typeof data.status === "string" && data.status) ||
+    (typeof o.status === "string" && o.status) ||
+    null;
+  const amount =
+    data.amount != null ? String(data.amount) : o.amount != null ? String(o.amount) : null;
+  return { txRef, status, amount };
 }

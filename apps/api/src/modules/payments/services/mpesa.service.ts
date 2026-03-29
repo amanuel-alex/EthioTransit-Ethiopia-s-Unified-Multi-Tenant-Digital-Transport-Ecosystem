@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { getMpesaEnv } from "@ethiotransit/config";
 import { MpesaTransactionType } from "@ethiotransit/shared";
 import type { MpesaStkPushDto } from "@ethiotransit/shared";
@@ -54,7 +53,7 @@ export async function initiateMpesaStk(dto: MpesaStkPushDto): Promise<
       ok: false,
       status: 400,
       code: "missing_phone",
-      message: "customerContact (MSISDN) is required for M-Pesa",
+      message: "phoneNumber is required for M-Pesa",
     };
   }
 
@@ -124,11 +123,47 @@ export async function initiateMpesaStk(dto: MpesaStkPushDto): Promise<
   }
 }
 
-/** Acknowledge M-Pesa callback; persist and verify ResultCode in production. */
-export function handleMpesaCallback(body: unknown) {
-  const hash = createHash("sha256")
-    .update(JSON.stringify(body ?? {}))
-    .digest("hex")
-    .slice(0, 12);
-  return { ResultCode: 0, ResultDesc: "accepted", ref: hash };
+export type ParsedMpesaStkCallback = {
+  checkoutRequestId: string;
+  merchantRequestId?: string;
+  resultCode: number;
+  resultDesc: string;
+  amount?: number;
+  mpesaReceipt?: string;
+};
+
+/** Parse Safaricom STK callback JSON. Invalid shape returns null. */
+export function parseMpesaStkCallback(body: unknown): ParsedMpesaStkCallback | null {
+  const b = body as {
+    Body?: {
+      stkCallback?: {
+        CheckoutRequestID?: string;
+        MerchantRequestID?: string;
+        ResultCode?: number;
+        ResultDesc?: string;
+        CallbackMetadata?: { Item?: { Name?: string; Value?: unknown }[] };
+      };
+    };
+  };
+  const cb = b?.Body?.stkCallback;
+  if (!cb?.CheckoutRequestID) return null;
+
+  let amount: number | undefined;
+  let mpesaReceipt: string | undefined;
+  const items = cb.CallbackMetadata?.Item ?? [];
+  for (const it of items) {
+    if (it.Name === "Amount" && typeof it.Value === "number") amount = it.Value;
+    if (it.Name === "MpesaReceiptNumber" && typeof it.Value === "string") {
+      mpesaReceipt = it.Value;
+    }
+  }
+
+  return {
+    checkoutRequestId: cb.CheckoutRequestID,
+    merchantRequestId: cb.MerchantRequestID,
+    resultCode: cb.ResultCode ?? -1,
+    resultDesc: cb.ResultDesc ?? "",
+    amount,
+    mpesaReceipt,
+  };
 }

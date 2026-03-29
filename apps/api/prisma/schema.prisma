@@ -1,0 +1,205 @@
+// EthioTransit — multi-tenant transport booking (PostgreSQL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PASSENGER
+  COMPANY
+  ADMIN
+}
+
+enum CompanyStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum BookingStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum PaymentProvider {
+  MPESA
+  CHAPA
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model Company {
+  id        String        @id @default(cuid())
+  name      String
+  slug      String        @unique
+  status    CompanyStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  users     User[]
+  buses     Bus[]
+  routes    Route[]
+  schedules Schedule[]
+  seatLocks SeatLock[]
+  bookings  Booking[]
+  payments  Payment[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  role      UserRole
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+  bookings      Booking[]
+  payments      Payment[]
+  seatLocks     SeatLock[]
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Bus {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plateNumber  String
+  seatCapacity Int
+  /// Operational cost assumption for analytics (per km).
+  costPerKm    Decimal  @db.Decimal(12, 4)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  schedules Schedule[]
+
+  @@unique([companyId, plateNumber])
+}
+
+model Route {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  origin      String
+  destination String
+  distanceKm  Decimal  @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  schedules Schedule[]
+
+  @@index([companyId, origin, destination])
+}
+
+model Schedule {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  routeId   String
+  route     Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  busId     String
+  bus       Bus      @relation(fields: [busId], references: [id], onDelete: Cascade)
+  departsAt DateTime
+  arrivesAt DateTime
+  basePrice Decimal  @db.Decimal(12, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  seatLocks SeatLock[]
+  bookings  Booking[]
+
+  @@index([companyId, routeId, departsAt])
+}
+
+/// Short-lived reservation before payment. One row per (schedule, seat); delete expired before creating new.
+model SeatLock {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  scheduleId   String
+  schedule     Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  seatNo       Int
+  holderUserId String?
+  holder       User?    @relation(fields: [holderUserId], references: [id], onDelete: SetNull)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@unique([scheduleId, seatNo])
+}
+
+model Booking {
+  id             String        @id @default(cuid())
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  scheduleId     String
+  schedule       Schedule      @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status         BookingStatus @default(PENDING)
+  totalAmount    Decimal       @db.Decimal(12, 2)
+  platformFee    Decimal       @db.Decimal(12, 2)
+  companyEarning Decimal       @db.Decimal(12, 2)
+  currency       String        @default("ETB")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  seats    BookingSeat[]
+  payments Payment[]
+
+  @@index([companyId, userId])
+  @@index([scheduleId, status])
+}
+
+model BookingSeat {
+  id        String  @id @default(cuid())
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  seatNo    Int
+
+  @@unique([bookingId, seatNo])
+}
+
+model Payment {
+  id             String          @id @default(cuid())
+  companyId      String
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bookingId      String
+  booking        Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider       PaymentProvider
+  amount         Decimal         @db.Decimal(12, 2)
+  currency       String          @default("ETB")
+  status         PaymentStatus   @default(PENDING)
+  externalRef    String?
+  mpesaReceipt   String?
+  rawPayload     Json?
+  platformFee    Decimal         @db.Decimal(12, 2)
+  companyEarning Decimal         @db.Decimal(12, 2)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([bookingId])
+  @@index([externalRef])
+}

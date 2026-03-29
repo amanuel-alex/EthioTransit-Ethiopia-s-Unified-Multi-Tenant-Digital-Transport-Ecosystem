@@ -8,7 +8,7 @@ EthioTransit is a full-stack, multi-tenant transport platform. This repository i
 ├── apps/
 │   ├── web/       # Next.js (App Router, Tailwind)
 │   ├── mobile/    # Flutter (`ethiotransit_mobile`)
-│   ├── api/       # Express REST API + payment services
+│   ├── api/       # Express + Prisma + PostgreSQL (multi-tenant API)
 │   └── bot/       # Telegram bot (grammY)
 ├── packages/
 │   ├── shared/    # Types, DTOs, payment enums, utils
@@ -25,6 +25,7 @@ EthioTransit is a full-stack, multi-tenant transport platform. This repository i
 
 - **Node.js** 20+
 - **pnpm** 9+ (or run via `npx pnpm@9.15.0 <command>`)
+- **PostgreSQL** 14+ (for `apps/api`)
 - **Flutter** SDK (for `apps/mobile`)
 
 ## Install
@@ -49,14 +50,58 @@ pnpm install
 
 `pnpm dev` runs Turborepo with `dependsOn: ["^build"]` so workspace packages build before app dev servers start.
 
-## API & payments
+## API (EthioTransit backend)
 
-- **Health:** `GET http://localhost:4000/api/v1/health`
-- **Initialize payment:** `POST http://localhost:4000/api/v1/payments/init` with JSON body `{ "provider": "mpesa" \| "chapa", "amount", "currency", "reference", "customerContact"?, ... }`
-- **M-Pesa callback:** `POST /api/v1/payments/mpesa/callback`
-- **Chapa callback (example):** `GET /api/v1/payments/chapa/callback`
+Copy [`apps/api/.env.example`](apps/api/.env.example) to `apps/api/.env`, set `DATABASE_URL` and JWT secrets, then:
 
-Copy `apps/api/.env.example` to `apps/api/.env` and set Daraja / Chapa credentials. Without keys, the API responds with `503` and a clear `code` (`mpesa_not_configured`, `chapa_not_configured`).
+```bash
+pnpm --filter @ethiotransit/api exec prisma migrate dev
+pnpm --filter @ethiotransit/api exec prisma db seed
+pnpm --filter @ethiotransit/api dev
+```
+
+For production deployments against a managed database, use `prisma migrate deploy` instead of `migrate dev`.
+
+### Auth (JWT access + refresh)
+
+| Method | Path | Notes |
+|--------|------|--------|
+| POST | `/api/v1/auth/login` | Body: `{ "phone", "code" }`. MVP: `AUTH_DEV_BYPASS=true` and `AUTH_DEV_CODE` (see `.env.example`). |
+| POST | `/api/v1/auth/refresh` | Body: `{ "refreshToken" }`. |
+
+Passengers must send `x-company-id` on tenant-scoped routes. Company users use `companyId` from the JWT.
+
+### Core resources
+
+| Method | Path |
+|--------|------|
+| GET | `/api/v1/health` |
+| GET | `/api/v1/routes/search?origin=&destination=` |
+| GET | `/api/v1/schedules/available?scheduleId=` or `?routeId=&from=&to=` (ISO dates) |
+| POST | `/api/v1/bookings/create` |
+| GET | `/api/v1/bookings/user` |
+| GET | `/api/v1/bookings/company` (company role) |
+
+### Payments
+
+| Method | Path |
+|--------|------|
+| POST | `/api/v1/payments/mpesa/initiate` |
+| POST | `/api/v1/payments/chapa/initiate` |
+| POST | `/api/v1/payments/webhook` |
+
+Register **M-Pesa** Daraja callback URL to `.../api/v1/payments/webhook` (same URL for Chapa where applicable). Webhook verifies Chapa HMAC when `CHAPA_WEBHOOK_SECRET` is set.
+
+### Company & admin
+
+| Method | Path |
+|--------|------|
+| GET | `/api/v1/company/dashboard` |
+| GET | `/api/v1/company/revenue` |
+| GET | `/api/v1/admin/companies` |
+| GET | `/api/v1/admin/analytics` |
+
+Without M-Pesa/Chapa keys, initiate endpoints return `503` with `mpesa_not_configured` / `chapa_not_configured`.
 
 ## Telegram bot
 
