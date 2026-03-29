@@ -1,5 +1,9 @@
 import { Router } from "express";
-import { UserRole } from "@prisma/client";
+import {
+  CompanyStatus,
+  PaymentStatus,
+  UserRole,
+} from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { requireAuth, requireRoles } from "../../middleware/auth.js";
 import * as analyticsService from "../analytics/analytics.service.js";
@@ -14,6 +18,9 @@ adminRouter.get(
     try {
       const data = await prisma.company.findMany({
         orderBy: { createdAt: "desc" },
+        include: {
+          _count: { select: { buses: true } },
+        },
       });
       res.json({ data });
     } catch (e) {
@@ -34,13 +41,27 @@ adminRouter.get(
         km,
         peak,
         buses,
+        paymentTotals,
+        companyTotals,
       ] = await Promise.all([
         analyticsService.revenuePerCompany(),
         analyticsService.profitPerRoute(15),
         analyticsService.aggregateKmMetrics(),
         analyticsService.peakBookingHours(),
         analyticsService.busPerformanceRanking(15),
+        prisma.payment.aggregate({
+          where: { status: PaymentStatus.COMPLETED },
+          _sum: { amount: true, platformFee: true, companyEarning: true },
+        }),
+        prisma.company.groupBy({
+          by: ["status"],
+          _count: { _all: true },
+        }),
       ]);
+
+      const operatorsByStatus = Object.fromEntries(
+        companyTotals.map((r) => [r.status, r._count._all]),
+      ) as Record<string, number>;
 
       res.json({
         revenuePerCompany: revenueByCompany,
@@ -49,6 +70,16 @@ adminRouter.get(
         km: km,
         peakBookingTimes: peak,
         busPerformanceRanking: buses,
+        paymentTotals: {
+          gross: paymentTotals._sum.amount?.toString() ?? "0",
+          platformFees: paymentTotals._sum.platformFee?.toString() ?? "0",
+          companyEarnings: paymentTotals._sum.companyEarning?.toString() ?? "0",
+        },
+        operators: {
+          total: companyTotals.reduce((a, r) => a + r._count._all, 0),
+          active: operatorsByStatus[CompanyStatus.ACTIVE] ?? 0,
+          suspended: operatorsByStatus[CompanyStatus.SUSPENDED] ?? 0,
+        },
       });
     } catch (e) {
       next(e);

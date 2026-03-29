@@ -1,8 +1,18 @@
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
 import {
   PrismaClient,
   UserRole,
   CompanyStatus,
 } from "@prisma/client";
+
+const apiRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+dotenv.config({ path: join(apiRoot, ".env") });
+if (process.env.NODE_ENV !== "production" && !existsSync(join(apiRoot, ".env"))) {
+  dotenv.config({ path: join(apiRoot, ".env.example") });
+}
 
 const prisma = new PrismaClient();
 

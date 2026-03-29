@@ -8,12 +8,16 @@
     "build": "prisma generate && tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "lint": "tsc --noEmit -p tsconfig.json",
+    "generate": "prisma generate",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:push": "prisma db push",
+    "db:migrate": "node scripts/prisma-env.mjs migrate dev",
+    "db:migrate:deploy": "node scripts/prisma-env.mjs migrate deploy",
+    "db:push": "node scripts/prisma-env.mjs db push",
+    "db:setup": "node scripts/prisma-env.mjs migrate deploy && tsx prisma/seed.ts",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "db:studio": "node scripts/prisma-env.mjs studio",
+    "bootstrap:env": "node scripts/ensure-local-env.mjs",
+    "postinstall": "prisma generate && node scripts/ensure-local-env.mjs"
   },
   "dependencies": {
     "@ethiotransit/config": "workspace:*",

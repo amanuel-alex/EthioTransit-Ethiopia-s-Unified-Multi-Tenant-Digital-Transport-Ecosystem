@@ -1,7 +1,5 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  transpilePackages: ["@ethiotransit/ui", "@ethiotransit/shared"],
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;
