@@ -1,4 +1,4 @@
-import { BookingStatus } from "@prisma/client";
+import { BookingStatus, CompanyStatus } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../utils/errors.js";
 
@@ -6,7 +6,18 @@ function isLockActive(expiresAt: Date) {
   return expiresAt > new Date();
 }
 
+async function assertCompanyActive(tenantId: string) {
+  const company = await prisma.company.findFirst({
+    where: { id: tenantId },
+    select: { status: true },
+  });
+  if (!company || company.status !== CompanyStatus.ACTIVE) {
+    throw new HttpError(403, "company_inactive", "This operator is not available");
+  }
+}
+
 export async function getAvailableForSchedule(tenantId: string, scheduleId: string) {
+  await assertCompanyActive(tenantId);
   const schedule = await prisma.schedule.findFirst({
     where: { id: scheduleId, companyId: tenantId },
     include: {
@@ -63,6 +74,7 @@ export async function listAvailableByRoute(
   from: Date,
   to: Date,
 ) {
+  await assertCompanyActive(tenantId);
   const schedules = await prisma.schedule.findMany({
     where: {
       companyId: tenantId,

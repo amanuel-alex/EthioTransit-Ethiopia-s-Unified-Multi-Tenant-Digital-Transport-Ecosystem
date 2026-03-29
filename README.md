@@ -79,6 +79,7 @@ Passengers must send `x-company-id` on tenant-scoped routes. Company users use `
 | GET | `/api/v1/routes/search?origin=&destination=` |
 | GET | `/api/v1/schedules/available?scheduleId=` or `?routeId=&from=&to=` (ISO dates) |
 | POST | `/api/v1/bookings/create` |
+| POST | `/api/v1/bookings/cancel` | Body: `{ "bookingId" }` — pending only; releases seat locks. |
 | GET | `/api/v1/bookings/user` |
 | GET | `/api/v1/bookings/company` (company role) |
 
@@ -102,6 +103,19 @@ Register **M-Pesa** Daraja callback URL to `.../api/v1/payments/webhook` (same U
 | GET | `/api/v1/admin/analytics` |
 
 Without M-Pesa/Chapa keys, initiate endpoints return `503` with `mpesa_not_configured` / `chapa_not_configured`.
+
+### Production configuration
+
+When `NODE_ENV=production`, startup **requires**:
+
+- `CORS_ORIGIN` (comma-separated allowed browser origins).
+- `AUTH_DEV_BYPASS` must **not** be `true`.
+- **M-Pesa webhooks:** set `MPESA_WEBHOOK_SECRET` (and send it as header `X-EthioTransit-Mpesa-Webhook-Secret` from your gateway) **and/or** `MPESA_WEBHOOK_IP_ALLOWLIST`, **or** set `WEBHOOK_INSECURE_ALLOW=true` only on private networks.
+- **Chapa webhooks:** set `CHAPA_WEBHOOK_SECRET` (HMAC on raw body), **or** `CHAPA_WEBHOOKS_DISABLED=true` if you only use M-Pesa, **or** `WEBHOOK_INSECURE_ALLOW=true` for private testing.
+
+Apply new DB constraints after pulling:
+
+`pnpm --filter @ethiotransit/api exec prisma migrate deploy`
 
 ## Telegram bot
 

@@ -2,6 +2,7 @@ import {
   BookingStatus,
   PaymentProvider,
   PaymentStatus,
+  Prisma,
 } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../utils/errors.js";
@@ -29,6 +30,68 @@ export async function assertBookingPayable(params: {
   return booking;
 }
 
+async function getOrCreatePendingPayment(params: {
+  booking: {
+    id: string;
+    companyId: string;
+    userId: string;
+    totalAmount: Prisma.Decimal;
+    currency: string;
+  };
+  provider: PaymentProvider;
+}) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const existing = await tx.payment.findFirst({
+        where: {
+          bookingId: params.booking.id,
+          status: PaymentStatus.PENDING,
+        },
+      });
+      if (existing) {
+        if (existing.provider !== params.provider) {
+          throw new HttpError(
+            409,
+            "payment_provider_conflict",
+            "This booking already has a pending payment using a different provider. Cancel it or complete that flow first.",
+          );
+        }
+        return existing;
+      }
+      const { platformFee, companyEarning } = splitCommission(
+        params.booking.totalAmount,
+      );
+      return tx.payment.create({
+        data: {
+          companyId: params.booking.companyId,
+          bookingId: params.booking.id,
+          userId: params.booking.userId,
+          provider: params.provider,
+          amount: params.booking.totalAmount,
+          currency: params.booking.currency,
+          status: PaymentStatus.PENDING,
+          platformFee,
+          companyEarning,
+        },
+      });
+    });
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      const row = await prisma.payment.findFirst({
+        where: {
+          bookingId: params.booking.id,
+          status: PaymentStatus.PENDING,
+        },
+      });
+      if (row && row.provider === params.provider) return row;
+    }
+    throw e;
+  }
+}
+
 export async function initiateMpesaPayment(params: {
   tenantId: string;
   userId: string;
@@ -41,33 +104,36 @@ export async function initiateMpesaPayment(params: {
     bookingId: params.bookingId,
   });
 
-  const { platformFee, companyEarning } = splitCommission(booking.totalAmount);
-
-  const payment = await prisma.payment.create({
-    data: {
-      companyId: booking.companyId,
-      bookingId: booking.id,
-      userId: booking.userId,
-      provider: PaymentProvider.MPESA,
-      amount: booking.totalAmount,
-      currency: booking.currency,
-      status: PaymentStatus.PENDING,
-      platformFee,
-      companyEarning,
-    },
+  const payment = await getOrCreatePendingPayment({
+    booking,
+    provider: PaymentProvider.MPESA,
   });
+
+  if (payment.externalRef && payment.status === PaymentStatus.PENDING) {
+    return {
+      paymentId: payment.id,
+      checkoutRequestId: payment.externalRef,
+      merchantRequestId: null as string | null | undefined,
+      idempotent: true as const,
+    };
+  }
 
   const stk = await initiateMpesaStk({
     phoneNumber: params.phoneNumber,
     amount: Number(booking.totalAmount),
-    accountReference: payment.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12) || payment.id.slice(0, 12),
+    accountReference:
+      payment.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12) ||
+      payment.id.slice(0, 12),
     transactionDesc: `BK${payment.id.slice(-8)}`,
   });
 
   if (!stk.ok) {
     await prisma.payment.update({
       where: { id: payment.id },
-      data: { status: PaymentStatus.FAILED, rawPayload: { error: stk } as object },
+      data: {
+        status: PaymentStatus.FAILED,
+        rawPayload: { error: stk } as object,
+      },
     });
     throw new HttpError(stk.status, stk.code, stk.message);
   }
@@ -83,6 +149,7 @@ export async function initiateMpesaPayment(params: {
     paymentId: payment.id,
     checkoutRequestId: stk.data.checkoutRequestId,
     merchantRequestId: stk.data.merchantRequestId,
+    idempotent: false as const,
   };
 }
 
@@ -100,20 +167,9 @@ export async function initiateChapaPayment(params: {
     bookingId: params.bookingId,
   });
 
-  const { platformFee, companyEarning } = splitCommission(booking.totalAmount);
-
-  const payment = await prisma.payment.create({
-    data: {
-      companyId: booking.companyId,
-      bookingId: booking.id,
-      userId: booking.userId,
-      provider: PaymentProvider.CHAPA,
-      amount: booking.totalAmount,
-      currency: booking.currency,
-      status: PaymentStatus.PENDING,
-      platformFee,
-      companyEarning,
-    },
+  const payment = await getOrCreatePendingPayment({
+    booking,
+    provider: PaymentProvider.CHAPA,
   });
 
   await prisma.payment.update({
@@ -133,7 +189,10 @@ export async function initiateChapaPayment(params: {
   if (!chapa.ok) {
     await prisma.payment.update({
       where: { id: payment.id },
-      data: { status: PaymentStatus.FAILED, rawPayload: { error: chapa } as object },
+      data: {
+        status: PaymentStatus.FAILED,
+        rawPayload: { error: chapa } as object,
+      },
     });
     throw new HttpError(chapa.status, chapa.code, chapa.message);
   }
@@ -146,6 +205,57 @@ export async function initiateChapaPayment(params: {
 }
 
 /**
+ * M-Pesa STK declined / cancelled: fail payment and release seat locks so the customer can retry.
+ */
+export async function failMpesaPaymentByCheckoutId(params: {
+  checkoutRequestId: string;
+  rawPayload: object;
+  resultCode: number;
+  resultDesc: string;
+}) {
+  const payment = await prisma.payment.findFirst({
+    where: {
+      provider: PaymentProvider.MPESA,
+      externalRef: params.checkoutRequestId,
+      status: PaymentStatus.PENDING,
+    },
+    include: { booking: { include: { seats: true } } },
+  });
+  if (!payment) {
+    return { ok: false as const, reason: "not_found" as const };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: PaymentStatus.FAILED,
+        rawPayload: {
+          ...(typeof params.rawPayload === "object" &&
+          params.rawPayload !== null &&
+          !Array.isArray(params.rawPayload)
+            ? params.rawPayload
+            : {}),
+          mpesaResultCode: params.resultCode,
+          mpesaResultDesc: params.resultDesc,
+        } as object,
+      },
+    });
+    const seatNos = payment.booking.seats.map((s) => s.seatNo);
+    if (seatNos.length) {
+      await tx.seatLock.deleteMany({
+        where: {
+          scheduleId: payment.booking.scheduleId,
+          seatNo: { in: seatNos },
+        },
+      });
+    }
+  });
+
+  return { ok: true as const };
+}
+
+/**
  * Mark payment and booking paid, release seat locks. Idempotent if already paid.
  */
 export async function confirmPaymentByProvider(params: {
@@ -154,26 +264,47 @@ export async function confirmPaymentByProvider(params: {
   provider: PaymentProvider;
   mpesaReceipt?: string;
   rawPayload?: object;
-  /** When M-Pesa omits amount in callback, skip amount check */
   paidAmount?: number;
 }) {
-  const orClause = [
-    ...(params.paymentId ? [{ id: params.paymentId }] : []),
-    ...(params.externalRef ? [{ externalRef: params.externalRef }] : []),
-  ];
-  if (orClause.length === 0) {
-    throw new HttpError(400, "invalid_query", "Missing payment identifier");
+  const include = { booking: { include: { seats: true as const } } } as const;
+
+  let payment =
+    params.externalRef && !params.paymentId
+      ? await prisma.payment.findUnique({
+          where: {
+            provider_externalRef: {
+              provider: params.provider,
+              externalRef: params.externalRef,
+            },
+          },
+          include,
+        })
+      : null;
+
+  if (params.paymentId) {
+    const byId = await prisma.payment.findUnique({
+      where: { id: params.paymentId },
+      include,
+    });
+    if (byId && byId.provider !== params.provider) {
+      throw new HttpError(400, "provider_mismatch", "Payment provider mismatch");
+    }
+    payment = byId ?? payment;
   }
 
-  const payment = await prisma.payment.findFirst({
-    where: {
-      provider: params.provider,
-      OR: orClause,
-    },
-    include: {
-      booking: { include: { seats: true } },
-    },
-  });
+  if (!payment) {
+    const orClause = [
+      ...(params.paymentId ? [{ id: params.paymentId }] : []),
+      ...(params.externalRef ? [{ externalRef: params.externalRef }] : []),
+    ];
+    if (orClause.length === 0) {
+      throw new HttpError(400, "invalid_query", "Missing payment identifier");
+    }
+    payment = await prisma.payment.findFirst({
+      where: { provider: params.provider, OR: orClause },
+      include,
+    });
+  }
 
   if (!payment) {
     throw new HttpError(404, "payment_not_found", "Payment not found");
@@ -186,13 +317,17 @@ export async function confirmPaymentByProvider(params: {
   if (params.paidAmount != null) {
     const expected = Number(payment.amount);
     if (Math.abs(expected - params.paidAmount) > 0.05) {
-      throw new HttpError(400, "amount_mismatch", "Paid amount does not match booking");
+      throw new HttpError(
+        400,
+        "amount_mismatch",
+        "Paid amount does not match booking",
+      );
     }
   }
 
   await prisma.$transaction(async (tx) => {
     await tx.payment.update({
-      where: { id: payment.id },
+      where: { id: payment!.id },
       data: {
         status: PaymentStatus.COMPLETED,
         mpesaReceipt: params.mpesaReceipt,
@@ -201,15 +336,15 @@ export async function confirmPaymentByProvider(params: {
     });
 
     await tx.booking.update({
-      where: { id: payment.bookingId },
+      where: { id: payment!.bookingId },
       data: { status: BookingStatus.PAID },
     });
 
-    const seatNos = payment.booking.seats.map((s) => s.seatNo);
+    const seatNos = payment!.booking.seats.map((s) => s.seatNo);
     if (seatNos.length) {
       await tx.seatLock.deleteMany({
         where: {
-          scheduleId: payment.booking.scheduleId,
+          scheduleId: payment!.booking.scheduleId,
           seatNo: { in: seatNos },
         },
       });

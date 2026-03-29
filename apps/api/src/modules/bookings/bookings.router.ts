@@ -3,7 +3,7 @@ import { UserRole } from "@prisma/client";
 import { requireAuth, requireRoles } from "../../middleware/auth.js";
 import { requireTenant } from "../../middleware/tenant.js";
 import { validateBody } from "../../middleware/validate.js";
-import { createBookingSchema } from "./bookings.schemas.js";
+import { cancelBookingSchema, createBookingSchema } from "./bookings.schemas.js";
 import * as bookingsService from "./bookings.service.js";
 
 export const bookingsRouter = Router();
@@ -32,6 +32,26 @@ bookingsRouter.post(
           seats: booking.seats.map((s) => s.seatNo),
         },
       });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+bookingsRouter.post(
+  "/cancel",
+  requireAuth,
+  requireTenant,
+  validateBody(cancelBookingSchema),
+  async (req, res, next) => {
+    try {
+      const body = req.body as { bookingId: string };
+      const out = await bookingsService.cancelBooking({
+        tenantId: req.tenantId!,
+        userId: req.user!.id,
+        bookingId: body.bookingId,
+      });
+      res.json(out);
     } catch (e) {
       next(e);
     }

@@ -202,4 +202,5 @@ model Payment {
 
   @@index([bookingId])
   @@index([externalRef])
+  @@unique([provider, externalRef])
 }

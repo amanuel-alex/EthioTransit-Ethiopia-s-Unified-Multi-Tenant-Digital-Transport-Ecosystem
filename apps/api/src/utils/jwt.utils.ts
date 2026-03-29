@@ -2,6 +2,8 @@ import jwt from "jsonwebtoken";
 import type { UserRole } from "@prisma/client";
 import { loadEnv } from "../config/env.js";
 
+const JWT_ALG = "HS256" as const;
+
 export type AccessPayload = {
   sub: string;
   role: UserRole;
@@ -16,13 +18,16 @@ export function signAccessToken(payload: AccessPayload): string {
     {
       subject: payload.sub,
       expiresIn: env.JWT_ACCESS_EXPIRES as jwt.SignOptions["expiresIn"],
+      algorithm: JWT_ALG,
     },
   );
 }
 
 export function verifyAccessToken(token: string): AccessPayload {
   const env = loadEnv();
-  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as jwt.JwtPayload;
+  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, {
+    algorithms: [JWT_ALG],
+  }) as jwt.JwtPayload;
   if (!decoded.sub || !decoded.role) {
     throw new Error("invalid_token");
   }

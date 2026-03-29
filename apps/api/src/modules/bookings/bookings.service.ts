@@ -1,5 +1,6 @@
 import {
   BookingStatus,
+  CompanyStatus,
   Prisma,
 } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
@@ -11,6 +12,16 @@ function lockExpiresAt(): Date {
   const env = loadEnv();
   const ms = env.SEAT_LOCK_TTL_MINUTES * 60 * 1000;
   return new Date(Date.now() + ms);
+}
+
+async function assertCompanyActive(tx: Prisma.TransactionClient, companyId: string) {
+  const company = await tx.company.findFirst({
+    where: { id: companyId },
+    select: { status: true },
+  });
+  if (!company || company.status !== CompanyStatus.ACTIVE) {
+    throw new HttpError(403, "company_inactive", "This operator is not accepting bookings");
+  }
 }
 
 async function assertSeatsFree(
@@ -73,71 +84,138 @@ export async function createBooking(params: {
   scheduleId: string;
   seats: number[];
 }) {
-  return prisma.$transaction(async (tx) => {
-    const schedule = await tx.schedule.findFirst({
-      where: { id: params.scheduleId, companyId: params.tenantId },
-      include: { bus: true },
-    });
-    if (!schedule) {
-      throw new HttpError(404, "not_found", "Schedule not found");
-    }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await assertCompanyActive(tx, params.tenantId);
 
-    await assertSeatsFree(
-      tx,
-      params.tenantId,
-      params.scheduleId,
-      params.seats,
-      schedule.bus.seatCapacity,
-      params.userId,
-    );
-
-    const unit = schedule.basePrice;
-    const total = unit.mul(params.seats.length);
-    const { platformFee, companyEarning } = splitCommission(total);
-
-    const expiresAt = lockExpiresAt();
-
-    for (const seatNo of params.seats) {
-      await tx.seatLock.upsert({
+      const pendingBooking = await tx.booking.findFirst({
         where: {
-          scheduleId_seatNo: {
-            scheduleId: params.scheduleId,
-            seatNo,
-          },
-        },
-        update: {
-          expiresAt,
-          holderUserId: params.userId,
-          companyId: params.tenantId,
-        },
-        create: {
-          companyId: params.tenantId,
+          userId: params.userId,
           scheduleId: params.scheduleId,
-          seatNo,
-          holderUserId: params.userId,
-          expiresAt,
+          status: BookingStatus.PENDING,
         },
       });
-    }
+      if (pendingBooking) {
+        throw new HttpError(
+          409,
+          "pending_booking_exists",
+          "You already have a pending booking on this schedule. Cancel it or complete payment first.",
+        );
+      }
 
-    const booking = await tx.booking.create({
-      data: {
+      const schedule = await tx.schedule.findFirst({
+        where: { id: params.scheduleId, companyId: params.tenantId },
+        include: { bus: true },
+      });
+      if (!schedule) {
+        throw new HttpError(404, "not_found", "Schedule not found");
+      }
+
+      await assertSeatsFree(
+        tx,
+        params.tenantId,
+        params.scheduleId,
+        params.seats,
+        schedule.bus.seatCapacity,
+        params.userId,
+      );
+
+      const unit = schedule.basePrice;
+      const total = unit.mul(params.seats.length);
+      const { platformFee, companyEarning } = splitCommission(total);
+
+      const expiresAt = lockExpiresAt();
+
+      for (const seatNo of params.seats) {
+        await tx.seatLock.upsert({
+          where: {
+            scheduleId_seatNo: {
+              scheduleId: params.scheduleId,
+              seatNo,
+            },
+          },
+          update: {
+            expiresAt,
+            holderUserId: params.userId,
+            companyId: params.tenantId,
+          },
+          create: {
+            companyId: params.tenantId,
+            scheduleId: params.scheduleId,
+            seatNo,
+            holderUserId: params.userId,
+            expiresAt,
+          },
+        });
+      }
+
+      const booking = await tx.booking.create({
+        data: {
+          companyId: params.tenantId,
+          scheduleId: params.scheduleId,
+          userId: params.userId,
+          status: BookingStatus.PENDING,
+          totalAmount: total,
+          platformFee,
+          companyEarning,
+          currency: "ETB",
+          seats: {
+            create: params.seats.map((seatNo) => ({ seatNo })),
+          },
+        },
+        include: { seats: true },
+      });
+
+      return booking;
+    });
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      throw new HttpError(
+        409,
+        "seat_conflict",
+        "One or more seats were taken by another customer. Please choose different seats.",
+      );
+    }
+    throw e;
+  }
+}
+
+export async function cancelBooking(params: {
+  tenantId: string;
+  userId: string;
+  bookingId: string;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const booking = await tx.booking.findFirst({
+      where: {
+        id: params.bookingId,
         companyId: params.tenantId,
-        scheduleId: params.scheduleId,
         userId: params.userId,
         status: BookingStatus.PENDING,
-        totalAmount: total,
-        platformFee,
-        companyEarning,
-        currency: "ETB",
-        seats: {
-          create: params.seats.map((seatNo) => ({ seatNo })),
-        },
       },
       include: { seats: true },
     });
+    if (!booking) {
+      throw new HttpError(404, "not_found", "Pending booking not found");
+    }
 
-    return booking;
+    const seatNos = booking.seats.map((s) => s.seatNo);
+    await tx.seatLock.deleteMany({
+      where: {
+        scheduleId: booking.scheduleId,
+        seatNo: { in: seatNos },
+      },
+    });
+
+    await tx.booking.update({
+      where: { id: booking.id },
+      data: { status: BookingStatus.CANCELLED },
+    });
+
+    return { id: booking.id, status: BookingStatus.CANCELLED };
   });
 }
 

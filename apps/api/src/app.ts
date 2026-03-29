@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { randomUUID } from "node:crypto";
+import { loadEnv } from "./config/env.js";
 import { logger } from "./utils/logger.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import {
@@ -22,15 +23,26 @@ import { adminRouter } from "./modules/admin/admin.router.js";
 const API_PREFIX = "/api/v1";
 
 export function createApp() {
+  const env = loadEnv();
   const app = express();
 
+  if (env.NODE_ENV === "production" || process.env.MPESA_WEBHOOK_IP_ALLOWLIST) {
+    app.set("trust proxy", 1);
+  }
+
   app.use(helmet());
+
+  const corsOrigins = env.CORS_ORIGIN?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   app.use(
     cors({
-      origin: process.env.CORS_ORIGIN || true,
+      origin:
+        corsOrigins && corsOrigins.length > 0 ? corsOrigins : true,
       credentials: true,
     }),
   );
+
   app.use((req, res, next) => {
     const reqId = randomUUID();
     const child = logger.child({ reqId });

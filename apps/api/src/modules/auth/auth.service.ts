@@ -91,10 +91,13 @@ export async function rotateRefreshToken(rawRefresh: string) {
     throw new HttpError(401, "invalid_refresh", "Refresh token invalid");
   }
 
-  await prisma.refreshToken.update({
-    where: { id: row.id },
+  const consumed = await prisma.refreshToken.updateMany({
+    where: { id: row.id, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+  if (consumed.count !== 1) {
+    throw new HttpError(401, "invalid_refresh", "Refresh token already used");
+  }
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: row.userId } });
 

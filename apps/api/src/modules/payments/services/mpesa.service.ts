@@ -152,7 +152,13 @@ export function parseMpesaStkCallback(body: unknown): ParsedMpesaStkCallback | n
   let mpesaReceipt: string | undefined;
   const items = cb.CallbackMetadata?.Item ?? [];
   for (const it of items) {
-    if (it.Name === "Amount" && typeof it.Value === "number") amount = it.Value;
+    if (it.Name === "Amount") {
+      if (typeof it.Value === "number") amount = it.Value;
+      else if (typeof it.Value === "string") {
+        const n = Number(it.Value);
+        if (!Number.isNaN(n)) amount = n;
+      }
+    }
     if (it.Name === "MpesaReceiptNumber" && typeof it.Value === "string") {
       mpesaReceipt = it.Value;
     }
