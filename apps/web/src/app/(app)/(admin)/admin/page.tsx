@@ -361,75 +361,23 @@ export default function AdminPage() {
               </OperatorGlassCard>
             </div>
 
-            <OperatorGlassCard className="overflow-hidden p-0">
-              <div className="flex flex-col gap-3 border-b border-white/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="font-semibold text-white">
-                    Operator verification
-                  </h2>
-                  <p className="text-xs text-zinc-500">
-                    Transport operators registered on EthioTransit
-                  </p>
-                </div>
-                <Input
-                  placeholder="Filter companies…"
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="max-w-xs border-white/10 bg-white/5 text-zinc-100 placeholder:text-zinc-600"
-                />
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-white/10 hover:bg-transparent">
-                    <TableHead className="text-zinc-400">Company</TableHead>
-                    <TableHead className="text-zinc-400">Fleet size</TableHead>
-                    <TableHead className="text-zinc-400">Registration</TableHead>
-                    <TableHead className="text-zinc-400">Status</TableHead>
-                    <TableHead className="text-right text-zinc-400">
-                      Actions
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCompanies.map((co) => (
-                    <TableRow
-                      key={co.id}
-                      className="border-white/5 hover:bg-white/[0.03]"
-                    >
-                      <TableCell className="font-medium text-zinc-100">
-                        {co.name}
-                      </TableCell>
-                      <TableCell className="tabular-nums text-zinc-300">
-                        {co._count?.buses ?? "—"} vehicles
-                      </TableCell>
-                      <TableCell className="text-sm text-zinc-400">
-                        {new Intl.DateTimeFormat("en-ET", {
-                          dateStyle: "medium",
-                        }).format(new Date(co.createdAt))}
-                      </TableCell>
-                      <TableCell>{statusBadge(co.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          asChild
-                          size="sm"
-                          variant="ghost"
-                          className="text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
-                        >
-                          <Link href={`/admin/settings?company=${encodeURIComponent(co.id)}`}>
-                            Details
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <p className="border-t border-white/10 px-5 py-3 text-xs text-zinc-500">
-                Showing {filteredCompanies.length} of {companies?.length ?? 0}{" "}
-                operators
-                {filter.trim() ? " (filtered)" : ""}.
-              </p>
-            </OperatorGlassCard>
+            <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                { href: "/admin/companies", title: "Companies", body: "Activate or suspend operators" },
+                { href: "/admin/users", title: "Users", body: "Passengers, company accounts, admins" },
+                { href: "/admin/bookings", title: "Bookings", body: "Cross-tenant reservations" },
+                { href: "/admin/analytics", title: "Analytics", body: "Peak times & operator share" },
+                { href: "/admin/revenue", title: "Revenue", body: "Commission & payouts view" },
+                { href: "/admin/settings", title: "Settings", body: "Platform configuration" },
+              ].map((card) => (
+                <Link key={card.href} href={card.href}>
+                  <OperatorGlassCard className="h-full p-5 transition-colors hover:border-[hsl(152,65%,48%)]/40">
+                    <p className="text-sm font-semibold text-white">{card.title}</p>
+                    <p className="mt-2 text-xs text-zinc-500">{card.body}</p>
+                  </OperatorGlassCard>
+                </Link>
+              ))}
+            </div>
           </>
         )}
       </div>
