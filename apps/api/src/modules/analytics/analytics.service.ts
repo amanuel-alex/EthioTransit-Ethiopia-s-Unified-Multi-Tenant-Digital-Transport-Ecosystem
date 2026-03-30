@@ -13,7 +13,7 @@ export async function revenuePerCompany() {
     SELECT c.id AS company_id, c.name,
            COALESCE(SUM(p.amount), 0)::decimal AS revenue
     FROM "Company" c
-    LEFT JOIN "Payment" p ON p."companyId" = c.id AND p.status = ${PaymentStatus.COMPLETED}
+    LEFT JOIN "Payment" p ON p."companyId" = c.id AND p.status::text = ${PaymentStatus.COMPLETED}
     GROUP BY c.id, c.name
     ORDER BY revenue DESC
   `;
@@ -39,7 +39,7 @@ export async function profitPerRoute(limit = 20) {
     FROM "Route" r
     JOIN "Schedule" s ON s."routeId" = r.id
     JOIN "Bus" bus ON bus.id = s."busId"
-    LEFT JOIN "Booking" b ON b."scheduleId" = s.id AND b.status = ${BookingStatus.PAID}
+    LEFT JOIN "Booking" b ON b."scheduleId" = s.id AND b.status::text = ${BookingStatus.PAID}
     GROUP BY r.id, r.origin, r.destination, r."companyId"
     ORDER BY profit DESC
     LIMIT ${take}
@@ -62,7 +62,7 @@ export async function aggregateKmMetrics() {
     JOIN "Schedule" s ON s.id = b."scheduleId"
     JOIN "Route" r ON r.id = s."routeId"
     JOIN "Bus" bus ON bus.id = s."busId"
-    WHERE b.status = ${BookingStatus.PAID}
+    WHERE b.status::text = ${BookingStatus.PAID}
   `;
   const row = rows[0];
   const dist = Number(row?.total_distance_km ?? 0);
@@ -96,7 +96,7 @@ export async function busPerformanceRanking(limit = 20) {
            COALESCE(SUM(bk."companyEarning"), 0)::decimal AS revenue
     FROM "Bus" b
     LEFT JOIN "Schedule" s ON s."busId" = b.id
-    LEFT JOIN "Booking" bk ON bk."scheduleId" = s.id AND bk.status = ${BookingStatus.PAID}
+    LEFT JOIN "Booking" bk ON bk."scheduleId" = s.id AND bk.status::text = ${BookingStatus.PAID}
     GROUP BY b.id, b."plateNumber", b."companyId"
     ORDER BY revenue DESC
     LIMIT ${take}
@@ -119,7 +119,7 @@ export async function companyKmMetrics(companyId: string) {
     JOIN "Schedule" s ON s.id = b."scheduleId"
     JOIN "Route" r ON r.id = s."routeId"
     JOIN "Bus" bus ON bus.id = s."busId"
-    WHERE b.status = ${BookingStatus.PAID} AND b."companyId" = ${companyId}
+    WHERE b.status::text = ${BookingStatus.PAID} AND b."companyId" = ${companyId}
   `;
   const row = rows[0];
   const dist = Number(row?.total_distance_km ?? 0);

@@ -77,8 +77,17 @@ adminRouter.get(
         profitPerRoute: profitRoutes,
         mostProfitableRoutes: profitRoutes.slice(0, 10),
         km: km,
-        peakBookingTimes: peak,
-        busPerformanceRanking: buses,
+        peakBookingTimes: peak.map((p) => ({
+          hour: p.hour,
+          bookings: Number(p.bookings),
+        })),
+        busPerformanceRanking: buses.map((b) => ({
+          bus_id: b.bus_id,
+          plate: b.plate,
+          company_id: b.company_id,
+          trips: Number(b.trips),
+          revenue: b.revenue.toString(),
+        })),
         paymentTotals: {
           gross: paymentTotals._sum.amount?.toString() ?? "0",
           platformFees: paymentTotals._sum.platformFee?.toString() ?? "0",

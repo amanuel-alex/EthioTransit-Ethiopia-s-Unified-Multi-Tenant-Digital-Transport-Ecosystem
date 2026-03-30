@@ -56,15 +56,34 @@ companyRouter.get(
 
       res.json({
         payments: {
-          count: agg._count,
+          count: Number(agg._count),
           gross: agg._sum.amount?.toString() ?? "0",
           platformFees: agg._sum.platformFee?.toString() ?? "0",
           companyEarnings: agg._sum.companyEarning?.toString() ?? "0",
         },
-        profitByRoute: scopedProfit,
+        profitByRoute: scopedProfit.map((r) => ({
+          route_id: r.route_id,
+          origin: r.origin,
+          destination: r.destination,
+          company_id: r.company_id,
+          revenue: r.revenue.toString(),
+          estimated_cost: r.estimated_cost.toString(),
+          profit: r.profit.toString(),
+        })),
         km: kmCompany,
-        peakBookingHours: peak,
-        topBusesForCompany: buses.filter((b) => b.company_id === tenantId),
+        peakBookingHours: peak.map((p) => ({
+          hour: p.hour,
+          bookings: Number(p.bookings),
+        })),
+        topBusesForCompany: buses
+          .filter((b) => b.company_id === tenantId)
+          .map((b) => ({
+            bus_id: b.bus_id,
+            plate: b.plate,
+            company_id: b.company_id,
+            trips: Number(b.trips),
+            revenue: b.revenue.toString(),
+          })),
       });
     } catch (e) {
       next(e);

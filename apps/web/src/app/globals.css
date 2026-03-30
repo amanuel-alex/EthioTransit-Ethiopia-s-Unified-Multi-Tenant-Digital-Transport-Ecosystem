@@ -90,6 +90,10 @@
     @apply rounded-2xl border border-white/20 bg-white/10 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-white/5;
   }
 
+  .passenger-surface {
+    @apply min-h-0;
+  }
+
   .hero-gradient-mesh {
     background-image: var(--hero-mesh);
   }
