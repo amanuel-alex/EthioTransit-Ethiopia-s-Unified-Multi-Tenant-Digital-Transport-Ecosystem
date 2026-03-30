@@ -2,28 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  BarChart3,
-  CircleHelp,
-  LogOut,
-  Settings,
-  Shield,
-} from "lucide-react";
+import { CircleHelp, LogOut, Shield } from "lucide-react";
+import { ADMIN_NAV } from "@/components/dashboard/admin-nav";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 
-const nav = [
-  { href: "/admin", label: "System Analytics", icon: BarChart3 },
-  { href: "/admin/settings", label: "Platform settings", icon: Settings },
-];
-
-export function PlatformAdminSidebar() {
+export function PlatformAdminSidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-[260px] flex-col border-r border-white/10 bg-[#0a0a0a] text-zinc-100">
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-40 flex h-screen w-[260px] flex-col border-r border-white/10 bg-[#0a0a0a] text-zinc-100",
+        className,
+      )}
+    >
       <div className="border-b border-white/10 px-5 py-6">
         <Link
           href="/admin"
@@ -47,7 +42,7 @@ export function PlatformAdminSidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
-        {nav.map(({ href, label, icon: Icon }) => {
+        {ADMIN_NAV.map(({ href, label, icon: Icon }) => {
           const isActive =
             href === "/admin"
               ? pathname === "/admin"

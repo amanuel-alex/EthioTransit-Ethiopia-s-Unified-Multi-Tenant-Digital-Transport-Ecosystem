@@ -56,6 +56,29 @@ function persist(next: AuthState) {
   }
 }
 
+/** Mirrors tokens into httpOnly cookies for Server Actions / RSC API calls. */
+async function syncHttpSession(next: AuthState) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!next.accessToken || !next.refreshToken || !next.user) {
+      await fetch("/api/session", { method: "DELETE", credentials: "include" });
+      return;
+    }
+    await fetch("/api/session", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        accessToken: next.accessToken,
+        refreshToken: next.refreshToken,
+        user: next.user,
+      }),
+    });
+  } catch {
+    /* non-fatal */
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     accessToken: null,
@@ -65,8 +88,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setState(readStored());
+    const stored = readStored();
+    setState(stored);
     setReady(true);
+    void syncHttpSession(stored);
   }, []);
 
   const setSession = useCallback((next: AuthState) => {
@@ -75,17 +100,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    setSession({ accessToken: null, refreshToken: null, user: null });
+    const empty = {
+      accessToken: null,
+      refreshToken: null,
+      user: null,
+    } as AuthState;
+    setSession(empty);
+    void syncHttpSession(empty);
   }, [setSession]);
 
   const login = useCallback(
     async (phone: string, code: string) => {
       const out = await loginRequest(phone, code);
-      setSession({
+      const next = {
         accessToken: out.accessToken,
         refreshToken: out.refreshToken,
         user: out.user,
-      });
+      };
+      setSession(next);
+      await syncHttpSession(next);
       return out.user;
     },
     [setSession],
@@ -96,11 +129,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!rt) return false;
     try {
       const out = await refreshRequest(rt);
-      setSession({
+      const next = {
         accessToken: out.accessToken,
         refreshToken: out.refreshToken,
         user: state.user,
-      });
+      };
+      setSession(next);
+      await syncHttpSession(next);
       return true;
     } catch {
       logout();

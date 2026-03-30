@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bus, LogOut, Search, Shield, Ticket } from "lucide-react";
+import { useState } from "react";
+import { Bus, LogOut, Menu, Search, Shield, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,6 +13,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ADMIN_NAV } from "@/components/dashboard/admin-nav";
+import { OPERATOR_NAV } from "@/components/dashboard/operator-nav";
 import { OperatorSidebar } from "@/components/dashboard/operator-sidebar";
 import { PlatformAdminSidebar } from "@/components/dashboard/platform-admin-sidebar";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
@@ -46,6 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const role = user?.role;
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isAdminSidebarRoute =
     role === "ADMIN" && pathname.startsWith("/admin");
@@ -68,26 +79,111 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         useDarkConsoleShell && "dark bg-[#050505] text-zinc-100",
       )}
     >
-      {isOperatorShell ? <OperatorSidebar /> : null}
-      {isAdminSidebarRoute ? <PlatformAdminSidebar /> : null}
+      {isOperatorShell ? <OperatorSidebar className="hidden md:flex" /> : null}
+      {isAdminSidebarRoute ? (
+        <PlatformAdminSidebar className="hidden md:flex" />
+      ) : null}
 
       <div
         className={cn(
           "flex min-h-screen flex-col",
-          (isOperatorShell || isAdminSidebarRoute) && "pl-[260px]",
+          (isOperatorShell || isAdminSidebarRoute) && "md:pl-[260px]",
         )}
       >
         {useDarkConsoleShell ? (
           <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-end gap-2 border-b border-white/10 bg-[#0a0a0a]/85 px-4 backdrop-blur-md sm:px-6">
+            {isOperatorShell ? (
+              <Dialog open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mr-auto md:hidden rounded-full border-white/15 bg-white/5 text-xs text-zinc-200 hover:bg-white/10"
+                  >
+                    <Menu className="mr-2 h-4 w-4" strokeWidth={2} />
+                    Menu
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[85vh] overflow-y-auto border-white/10 bg-[#0a0a0a] text-zinc-100 sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="text-white">Operator</DialogTitle>
+                  </DialogHeader>
+                  <nav className="flex flex-col gap-1 py-2">
+                    {OPERATOR_NAV.map(({ href, label, icon: Icon }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                          "flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium",
+                          pathname === href || pathname.startsWith(`${href}/`)
+                            ? "bg-[hsl(152,65%,48%)]/15 text-[hsl(152,65%,48%)]"
+                            : "text-zinc-400 hover:bg-white/5",
+                        )}
+                      >
+                        <Icon className="h-4 w-4" strokeWidth={1.75} />
+                        {label}
+                      </Link>
+                    ))}
+                    <Link
+                      href="/search"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="mt-2 rounded-xl bg-[hsl(152,65%,44%)] px-3 py-3 text-center text-sm font-semibold text-zinc-950"
+                    >
+                      New dispatch
+                    </Link>
+                  </nav>
+                </DialogContent>
+              </Dialog>
+            ) : null}
             {role === "ADMIN" && isAdminSidebarRoute ? (
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="mr-auto rounded-full border-white/15 bg-white/5 text-xs text-zinc-200 hover:bg-white/10"
-              >
-                <Link href="/auth">Operator console</Link>
-              </Button>
+              <>
+                <Dialog open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mr-auto md:hidden rounded-full border-white/15 bg-white/5 text-xs text-zinc-200 hover:bg-white/10"
+                    >
+                      <Menu className="mr-2 h-4 w-4" strokeWidth={2} />
+                      Menu
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-h-[85vh] overflow-y-auto border-white/10 bg-[#0a0a0a] text-zinc-100 sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="text-white">Admin</DialogTitle>
+                    </DialogHeader>
+                    <nav className="flex flex-col gap-1 py-2">
+                      {ADMIN_NAV.map(({ href, label, icon: Icon }) => (
+                        <Link
+                          key={href}
+                          href={href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={cn(
+                            "flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium",
+                            pathname === href || pathname.startsWith(`${href}/`)
+                              ? "bg-[hsl(152,65%,48%)]/15 text-[hsl(152,65%,48%)]"
+                              : "text-zinc-400 hover:bg-white/5",
+                          )}
+                        >
+                          <Icon className="h-4 w-4" strokeWidth={1.75} />
+                          {label}
+                        </Link>
+                      ))}
+                    </nav>
+                  </DialogContent>
+                </Dialog>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="mr-auto hidden md:inline-flex rounded-full border-white/15 bg-white/5 text-xs text-zinc-200 hover:bg-white/10"
+                >
+                  <Link href="/auth">Operator console</Link>
+                </Button>
+              </>
             ) : null}
             <ThemeToggle />
             <DropdownMenu>

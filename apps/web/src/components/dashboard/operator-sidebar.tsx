@@ -2,37 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Bus,
-  CircleHelp,
-  LayoutDashboard,
-  LineChart,
-  LogOut,
-  MapPin,
-  Route,
-  Ticket,
-  Users,
-} from "lucide-react";
+import { CircleHelp, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { OPERATOR_NAV } from "@/components/dashboard/operator-nav";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 
-const nav = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/bookings", label: "Bookings", icon: Ticket },
-  { href: "/dashboard/fleet", label: "Fleet Management", icon: Bus },
-  { href: "/dashboard/tracking", label: "Live Tracking", icon: MapPin },
-  { href: "/dashboard/revenue", label: "Revenue", icon: LineChart },
-  { href: "/dashboard/team", label: "Team", icon: Users },
-  { href: "/dashboard/reports", label: "Reports", icon: Route },
-];
-
-export function OperatorSidebar() {
+export function OperatorSidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-[260px] flex-col border-r border-white/10 bg-[#0a0a0a] text-zinc-100">
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-40 flex h-screen w-[260px] flex-col border-r border-white/10 bg-[#0a0a0a] text-zinc-100",
+        className,
+      )}
+    >
       <div className="border-b border-white/10 px-5 py-6">
         <Link
           href="/dashboard"
@@ -49,14 +35,14 @@ export function OperatorSidebar() {
               Operator Console
             </p>
             <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-              Premium fleet access
+              Fleet & revenue
             </p>
           </div>
         </div>
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
-        {nav.map(({ href, label, icon: Icon }) => {
+        {OPERATOR_NAV.map(({ href, label, icon: Icon }) => {
           const isActive =
             href === "/dashboard"
               ? pathname === "/dashboard"

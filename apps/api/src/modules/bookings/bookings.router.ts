@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { BookingStatus, UserRole } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 import { requireAuth, requireRoles } from "../../middleware/auth.js";
 import { requireTenant } from "../../middleware/tenant.js";
 import { validateBody, validateQuery } from "../../middleware/validate.js";
 import { cancelBookingSchema, createBookingSchema } from "./bookings.schemas.js";
 import * as bookingsService from "./bookings.service.js";
+import type { z } from "zod";
 import { companyBookingsQuerySchema } from "../company/operator.schemas.js";
 
 export const bookingsRouter = Router();
@@ -84,14 +85,14 @@ bookingsRouter.get(
   validateQuery(companyBookingsQuerySchema),
   async (req, res, next) => {
     try {
-      const q = req.validatedQuery!;
+      const q = req.validatedQuery as z.infer<typeof companyBookingsQuerySchema>;
       const rows = await bookingsService.listForCompanyFiltered(
         req.tenantId!,
         {
           from: q.from ? new Date(q.from) : undefined,
           to: q.to ? new Date(q.to) : undefined,
           routeId: q.routeId,
-          status: q.status as BookingStatus | undefined,
+          status: q.status,
         },
       );
       res.json({ data: rows });

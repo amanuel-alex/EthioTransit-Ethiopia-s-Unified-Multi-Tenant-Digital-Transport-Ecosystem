@@ -73,13 +73,14 @@ async function main() {
 
   const route = await prisma.route.upsert({
     where: { id: "seed_route_addis_hawassa" },
-    update: {},
+    update: { pricePerKm: 1.64 },
     create: {
       id: "seed_route_addis_hawassa",
       companyId: company.id,
       origin: "Addis Ababa",
       destination: "Hawassa",
       distanceKm: 275,
+      pricePerKm: 1.64,
     },
   });
 

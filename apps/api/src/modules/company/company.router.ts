@@ -15,6 +15,7 @@ import {
   updateRouteSchema,
   updateScheduleSchema,
 } from "./operator.schemas.js";
+import { routeParam } from "../../utils/params.js";
 import * as operatorService from "./operator.service.js";
 
 export const companyRouter = Router();
@@ -129,7 +130,7 @@ companyRouter.patch(
     try {
       const row = await operatorService.updateBus(
         req.tenantId!,
-        req.params.id,
+        routeParam(req.params.id)!,
         req.body,
       );
       res.json(row);
@@ -146,7 +147,10 @@ companyRouter.delete(
   requireTenant,
   async (req, res, next) => {
     try {
-      const out = await operatorService.deleteBus(req.tenantId!, req.params.id);
+      const out = await operatorService.deleteBus(
+        req.tenantId!,
+        routeParam(req.params.id)!,
+      );
       res.json(out);
     } catch (e) {
       next(e);
@@ -195,7 +199,7 @@ companyRouter.patch(
     try {
       const row = await operatorService.updateRoute(
         req.tenantId!,
-        req.params.id,
+        routeParam(req.params.id)!,
         req.body,
       );
       res.json(row);
@@ -214,7 +218,7 @@ companyRouter.delete(
     try {
       const out = await operatorService.deleteRoute(
         req.tenantId!,
-        req.params.id,
+        routeParam(req.params.id)!,
       );
       res.json(out);
     } catch (e) {
@@ -273,7 +277,7 @@ companyRouter.patch(
     try {
       const row = await operatorService.updateSchedule(
         req.tenantId!,
-        req.params.id,
+        routeParam(req.params.id)!,
         req.body,
       );
       res.json(row);
@@ -292,7 +296,7 @@ companyRouter.delete(
     try {
       const out = await operatorService.deleteSchedule(
         req.tenantId!,
-        req.params.id,
+        routeParam(req.params.id)!,
       );
       res.json(out);
     } catch (e) {
@@ -342,7 +346,7 @@ companyRouter.patch(
     try {
       const row = await operatorService.updateDriver(
         req.tenantId!,
-        req.params.id,
+        routeParam(req.params.id)!,
         req.body,
       );
       res.json(row);
@@ -361,7 +365,7 @@ companyRouter.delete(
     try {
       const out = await operatorService.deleteDriver(
         req.tenantId!,
-        req.params.id,
+        routeParam(req.params.id)!,
       );
       res.json(out);
     } catch (e) {
