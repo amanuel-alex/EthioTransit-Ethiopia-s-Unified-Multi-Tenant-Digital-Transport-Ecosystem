@@ -218,15 +218,22 @@ function SearchPageInner() {
 
       {loading ? (
         <div
-          className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
           aria-busy="true"
           aria-label="Loading results"
         >
           {Array.from({ length: 9 }, (_, i) => (
-            <Skeleton
+            <div
               key={i}
-              className="h-28 w-full rounded-xl bg-muted/60 dark:bg-white/10"
-            />
+              className="overflow-hidden rounded-2xl ring-1 ring-border/60 dark:ring-white/10"
+            >
+              <Skeleton className="aspect-[5/3] w-full rounded-none bg-muted/60 dark:bg-white/10" />
+              <div className="space-y-3 bg-muted/20 p-4 dark:bg-white/5">
+                <Skeleton className="h-4 w-2/3 bg-muted dark:bg-white/10" />
+                <Skeleton className="h-12 w-full bg-muted dark:bg-white/10" />
+                <Skeleton className="h-11 w-full rounded-xl bg-muted dark:bg-white/10" />
+              </div>
+            </div>
           ))}
         </div>
       ) : null}
@@ -260,7 +267,7 @@ function SearchPageInner() {
             </h2>
           </div>
           <motion.div
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
             initial="hidden"
             animate="show"
             variants={{

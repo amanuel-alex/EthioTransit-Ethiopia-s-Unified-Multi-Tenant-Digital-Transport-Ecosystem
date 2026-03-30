@@ -45,8 +45,12 @@ export default function CheckoutPage() {
     }
     setMpesaLoading(true);
     try {
-      await api.initiateMpesa(draft.bookingId, mpesaPhone.trim());
-      toast.success("STK push sent — check your phone");
+      const out = await api.initiateMpesa(draft.bookingId, mpesaPhone.trim());
+      if (out.mock) {
+        toast.success("Test mode: payment completed — no real charge.");
+      } else {
+        toast.success("STK push sent — check your phone");
+      }
       router.push(`/ticket?bookingId=${encodeURIComponent(draft.bookingId)}`);
     } catch (e) {
       const err = e as Error & { status?: number };
@@ -69,8 +73,12 @@ export default function CheckoutPage() {
     setChapaLoading(true);
     try {
       const out = await api.initiateChapa(draft.bookingId, chapaEmail.trim());
-      toast.success("Opening Chapa checkout…");
-      window.open(out.checkoutUrl, "_blank", "noopener,noreferrer");
+      if (out.mock) {
+        toast.success("Test mode: payment completed — no real checkout.");
+      } else {
+        toast.success("Opening Chapa checkout…");
+        window.open(out.checkoutUrl, "_blank", "noopener,noreferrer");
+      }
       router.push(`/ticket?bookingId=${encodeURIComponent(draft.bookingId)}`);
     } catch (e) {
       const err = e as Error & { status?: number };

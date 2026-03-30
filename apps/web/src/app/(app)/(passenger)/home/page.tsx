@@ -306,12 +306,23 @@ export default function HomePage() {
         ) : null}
 
         {upcomingLoading ? (
-          <div className="space-y-2" aria-busy="true">
-            {[0, 1, 2].map((i) => (
-              <Skeleton
+          <div
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            aria-busy="true"
+            aria-label="Loading trips"
+          >
+            {Array.from({ length: 9 }, (_, i) => (
+              <div
                 key={i}
-                className="h-[5.75rem] w-full rounded-xl bg-white/10"
-              />
+                className="overflow-hidden rounded-2xl ring-1 ring-white/10"
+              >
+                <Skeleton className="aspect-[5/3] w-full rounded-none bg-white/10" />
+                <div className="space-y-3 bg-zinc-900/40 p-4">
+                  <Skeleton className="h-4 w-2/3 bg-white/10" />
+                  <Skeleton className="h-12 w-full bg-white/10" />
+                  <Skeleton className="h-11 w-full rounded-xl bg-white/10" />
+                </div>
+              </div>
             ))}
           </div>
         ) : null}
@@ -343,7 +354,7 @@ export default function HomePage() {
 
         {!upcomingLoading && upcoming && upcoming.length > 0 ? (
           <motion.div
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
             initial="hidden"
             animate="show"
             variants={{

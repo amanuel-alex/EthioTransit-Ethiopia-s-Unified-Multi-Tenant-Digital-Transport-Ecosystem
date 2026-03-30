@@ -36,6 +36,14 @@ const envSchema = z
       .string()
       .optional()
       .transform((v) => v === "true" || v === "1"),
+    /**
+     * When true, payment initiation skips M-Pesa/Chapa and marks the booking PAID immediately.
+     * Local / staging only — never enable in production.
+     */
+    PAYMENTS_MOCK: z
+      .string()
+      .optional()
+      .transform((v) => v === "true" || v === "1"),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === "production" && data.AUTH_DEV_BYPASS === true) {
@@ -44,6 +52,14 @@ const envSchema = z
         message:
           "AUTH_DEV_BYPASS cannot be enabled when NODE_ENV=production. Use real SMS/OTP.",
         path: ["AUTH_DEV_BYPASS"],
+      });
+    }
+    if (data.NODE_ENV === "production" && data.PAYMENTS_MOCK === true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "PAYMENTS_MOCK cannot be enabled when NODE_ENV=production. Use real provider credentials.",
+        path: ["PAYMENTS_MOCK"],
       });
     }
     if (data.NODE_ENV === "production" && !data.CORS_ORIGIN?.trim()) {

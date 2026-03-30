@@ -81,12 +81,15 @@ export type MpesaInitResponse = {
   checkoutRequestId?: string | null;
   merchantRequestId?: string | null;
   idempotent?: boolean;
+  /** Set when API runs with PAYMENTS_MOCK=true — booking is already PAID; no STK push. */
+  mock?: boolean;
 };
 
 export type ChapaInitResponse = {
   paymentId: string;
   checkoutUrl: string;
   txRef: string;
+  mock?: boolean;
 };
 
 export type CompanyDashboardStats = {

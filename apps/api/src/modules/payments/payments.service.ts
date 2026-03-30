@@ -4,6 +4,7 @@ import {
   PaymentStatus,
   Prisma,
 } from "@prisma/client";
+import { loadEnv } from "../../config/env.js";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../utils/errors.js";
 import { splitCommission } from "../../utils/commission.js";
@@ -118,6 +119,27 @@ export async function initiateMpesaPayment(params: {
     };
   }
 
+  if (loadEnv().PAYMENTS_MOCK) {
+    const mockRef = `mock-mpesa-${payment.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 18)}`;
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { externalRef: mockRef },
+    });
+    await confirmPaymentByProvider({
+      paymentId: payment.id,
+      provider: PaymentProvider.MPESA,
+      mpesaReceipt: "MOCK-STK",
+      rawPayload: { mock: true, note: "PAYMENTS_MOCK" } as object,
+    });
+    return {
+      paymentId: payment.id,
+      checkoutRequestId: mockRef,
+      merchantRequestId: null,
+      idempotent: false as const,
+      mock: true as const,
+    };
+  }
+
   const stk = await initiateMpesaStk({
     phoneNumber: params.phoneNumber,
     amount: Number(booking.totalAmount),
@@ -171,6 +193,25 @@ export async function initiateChapaPayment(params: {
     booking,
     provider: PaymentProvider.CHAPA,
   });
+
+  if (loadEnv().PAYMENTS_MOCK) {
+    const mockRef = `mock-chapa-${payment.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 18)}`;
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { externalRef: mockRef },
+    });
+    await confirmPaymentByProvider({
+      paymentId: payment.id,
+      provider: PaymentProvider.CHAPA,
+      rawPayload: { mock: true, note: "PAYMENTS_MOCK" } as object,
+    });
+    return {
+      paymentId: payment.id,
+      checkoutUrl: "",
+      txRef: payment.id,
+      mock: true as const,
+    };
+  }
 
   await prisma.payment.update({
     where: { id: payment.id },
