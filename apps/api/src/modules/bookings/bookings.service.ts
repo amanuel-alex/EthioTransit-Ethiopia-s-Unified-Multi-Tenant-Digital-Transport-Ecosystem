@@ -282,7 +282,7 @@ export async function listAllBookingsAdmin(params: {
   from?: Date;
   to?: Date;
   companyId?: string;
-  status?: BookingStatusT;
+  status?: BookingStatus;
   skip: number;
   take: number;
 }) {

@@ -26,7 +26,7 @@ export function validateQuery<T>(schema: ZodSchema<T>) {
       });
       return;
     }
-    (req as Request & { validatedQuery: T }).validatedQuery = parsed.data;
+    req.validatedQuery = parsed.data;
     next();
   };
 }

@@ -1,4 +1,5 @@
 import { BookingStatus, Prisma } from "@prisma/client";
+import type { z } from "zod";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../utils/errors.js";
 import type {
@@ -11,7 +12,6 @@ import type {
   updateRouteSchema,
   updateScheduleSchema,
 } from "./operator.schemas.js";
-import type { z } from "zod";
 
 type CreateBus = z.infer<typeof createBusSchema>;
 type UpdateBus = z.infer<typeof updateBusSchema>;

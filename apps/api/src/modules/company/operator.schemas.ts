@@ -64,6 +64,11 @@ export const companyBookingsQuerySchema = z.object({
   status: z.nativeEnum(BookingStatus).optional(),
 });
 
+export const companySchedulesQuerySchema = z.object({
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+});
+
 export const adminBookingsQuerySchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),

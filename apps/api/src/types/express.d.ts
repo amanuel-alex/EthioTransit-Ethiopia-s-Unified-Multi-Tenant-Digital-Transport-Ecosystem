@@ -14,6 +14,8 @@ declare global {
        * PASSENGER must send x-company-id; COMPANY uses JWT companyId.
        */
       tenantId?: string | null;
+      /** Set by validateQuery middleware. */
+      validatedQuery?: unknown;
       /** Raw body buffer for webhook signature verification (set before JSON parse). */
       rawBody?: Buffer;
     }
