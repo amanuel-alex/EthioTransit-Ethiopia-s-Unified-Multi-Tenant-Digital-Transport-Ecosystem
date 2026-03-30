@@ -5,8 +5,22 @@ import 'package:intl/intl.dart';
 import '../../core/models/booking_models.dart';
 import '../../data/api_exception.dart';
 import '../../data/ethiotransit_repository.dart';
+import '../../theme/app_theme.dart';
 import '../checkout/checkout_screen.dart';
 import '../ticket/ticket_screen.dart';
+
+Color _statusTint(String status) {
+  switch (status) {
+    case 'PAID':
+      return AppColors.ethGreen.withValues(alpha: 0.22);
+    case 'PENDING':
+      return AppColors.ethYellow.withValues(alpha: 0.2);
+    case 'CANCELLED':
+      return AppColors.ethRed.withValues(alpha: 0.18);
+    default:
+      return Colors.grey.withValues(alpha: 0.22);
+  }
+}
 
 final _bookingsProvider = FutureProvider.autoDispose<List<BookingRow>>((ref) async {
   return ref.watch(ethiotransitRepositoryProvider).listUserBookings();
@@ -20,6 +34,7 @@ class BookingsScreen extends ConsumerWidget {
     final async = ref.watch(_bookingsProvider);
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: async.when(
           data: (rows) {
@@ -39,18 +54,24 @@ class BookingsScreen extends ConsumerWidget {
               length: 2,
               child: Column(
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'My bookings',
-                        style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
                       ),
                     ),
                   ),
-                  const TabBar(
-                    tabs: [
+                  TabBar(
+                    labelColor: AppColors.ethGreenNeon,
+                    unselectedLabelColor: Colors.grey.shade500,
+                    indicatorColor: AppColors.ethGreenNeon,
+                    indicatorWeight: 3,
+                    tabs: const [
                       Tab(text: 'Upcoming'),
                       Tab(text: 'Past / cancelled'),
                     ],
@@ -73,7 +94,9 @@ class BookingsScreen extends ConsumerWidget {
               ),
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(
+                child: CircularProgressIndicator(color: AppColors.ethGreen),
+              ),
           error: (e, _) => Center(
             child: Text(e is ApiException ? e.message : '$e'),
           ),
@@ -121,7 +144,12 @@ class _BookingList extends StatelessWidget {
                       ),
                     ),
                     Chip(
-                      label: Text(b.status, style: const TextStyle(fontSize: 11)),
+                      label: Text(
+                        b.status,
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                      ),
+                      backgroundColor: _statusTint(b.status),
+                      side: BorderSide.none,
                     ),
                   ],
                 ),

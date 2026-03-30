@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../constants/popular_routes.dart';
 import '../../core/models/schedule_detail.dart';
@@ -58,24 +59,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = ref.watch(authSessionProvider).valueOrNull;
+    final auth = ref.watch(authSessionProvider).asData?.value;
     final upcoming = ref.watch(_upcomingProvider);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final dateFmt = DateFormat.yMMMd();
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: RefreshIndicator(
+          color: AppColors.ethGreen,
           onRefresh: () async => ref.invalidate(_upcomingProvider),
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                 sliver: SliverToBoxAdapter(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundColor: AppColors.ethGreen.withValues(alpha: 0.2),
+                            child: const Icon(Icons.person_rounded, color: AppColors.ethGreenNeon),
+                          ),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,86 +94,173 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 Text(
                                   'Welcome back',
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: Colors.grey,
+                                        color: dark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B),
+                                        fontWeight: FontWeight.w500,
                                       ),
                                 ),
+                                const SizedBox(height: 2),
                                 Text(
                                   auth?.user.phone ?? 'Passenger',
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                        fontWeight: FontWeight.bold,
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.w800,
                                       ),
+
                                 ),
                               ],
                             ),
                           ),
-                          IconButton.filledTonal(
-                            onPressed: () {},
-                            icon: const Icon(Icons.notifications_outlined),
+                          Material(
+                            color: AppColors.ethGreen.withValues(alpha: 0.14),
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onPressed: () {},
+                              child: const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Icon(Icons.notifications_outlined, color: AppColors.ethGreenNeon),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 22),
                       Text(
-                        'Where are you going?',
+                        'EthioTransit',
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: AppColors.ethGreen,
-                              fontWeight: FontWeight.bold,
+                              color: AppColors.ethGreenNeon,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.8,
                             ),
                       ),
-                      const SizedBox(height: 16),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(18),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'WHERE TO?',
-                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                      color: AppColors.ethGreen,
-                                      letterSpacing: 1.2,
-                                    ),
-                              ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: _from,
-                                decoration: const InputDecoration(
-                                  labelText: 'From',
-                                  prefixIcon: Icon(Icons.trip_origin),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: _to,
-                                decoration: const InputDecoration(
-                                  labelText: 'To',
-                                  prefixIcon: Icon(Icons.place_outlined),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(Icons.calendar_today_rounded),
-                                title: const Text('Travel date'),
-                                subtitle: Text('${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}'),
-                                trailing: const Icon(Icons.chevron_right),
-                                onTap: () async {
-                                  final picked = await showDatePicker(
-                                    context: context,
-                                    initialDate: _date,
-                                    firstDate: DateTime.now(),
-                                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                                  );
-                                  if (picked != null) setState(() => _date = picked);
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              FilledButton.icon(
-                                onPressed: _search,
-                                icon: const Icon(Icons.search),
-                                label: const Text('Find best routes'),
-                              ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Where are you going?',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Seamless travel across Ethiopia — find routes, seats, and tickets in one place.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: dark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B),
+                              height: 1.35,
+                            ),
+                      ),
+                      const SizedBox(height: 22),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.ethGreen.withValues(alpha: dark ? 0.12 : 0.08),
+                              Colors.transparent,
                             ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          border: Border.all(
+                            color: AppColors.ethGreen.withValues(alpha: dark ? 0.35 : 0.28),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: dark ? 0.35 : 0.06),
+                              blurRadius: 28,
+                              offset: const Offset(0, 14),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(1.2),
+                          child: Card(
+                            margin: EdgeInsets.zero,
+                            color: dark ? AppColors.cardDark : Colors.white,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Text(
+                                    'WHERE TO?',
+                                    style: Theme.of(context).textTheme.labelSmall,
+                                  ),
+                                  const SizedBox(height: 14),
+                                  TextField(
+                                    controller: _from,
+                                    decoration: InputDecoration(
+                                      labelText: 'From',
+                                      prefixIcon: Icon(
+                                        Icons.trip_origin_rounded,
+                                        color: AppColors.ethGreen.withValues(alpha: 0.9),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller: _to,
+                                    decoration: InputDecoration(
+                                      labelText: 'To',
+                                      prefixIcon: Icon(
+                                        Icons.place_rounded,
+                                        color: AppColors.ethYellow.withValues(alpha: 0.95),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Material(
+                                    color: dark ? const Color(0xFF0D0D0D) : Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(18),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(18),
+                                      onTap: () async {
+                                        final picked = await showDatePicker(
+                                          context: context,
+                                          initialDate: _date,
+                                          firstDate: DateTime.now(),
+                                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                                        );
+                                        if (picked != null) setState(() => _date = picked);
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.calendar_month_rounded, color: AppColors.ethGreenNeon),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Travel date',
+                                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                                          color: dark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B),
+                                                        ),
+                                                  ),
+                                                  Text(
+                                                    dateFmt.format(_date),
+                                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                          fontWeight: FontWeight.w700,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Icon(Icons.chevron_right_rounded, color: Colors.grey.shade600),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 18),
+                                  FilledButton.icon(
+                                    onPressed: _search,
+                                    icon: const Icon(Icons.search_rounded, size: 22),
+                                    label: const Text('Find best routes'),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -170,15 +268,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       Text(
                         'Popular routes',
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w800,
                             ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 6),
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: 10,
+                        runSpacing: 10,
                         children: kPopularRoutes.map((r) {
                           return ActionChip(
+                            avatar: Icon(Icons.route_rounded, size: 18, color: AppColors.ethGreenNeon),
                             label: Text('${r.origin} → ${r.destination}'),
                             onPressed: () {
                               _from.text = r.origin;
@@ -195,12 +294,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           Text(
                             'Available soon',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w800,
                                 ),
                           ),
-                          TextButton(
+                          TextButton.icon(
                             onPressed: () => ref.invalidate(_upcomingProvider),
-                            child: const Text('Refresh'),
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            label: const Text('Refresh'),
+                            style: TextButton.styleFrom(foregroundColor: AppColors.ethGreenNeon),
                           ),
                         ],
                       ),
@@ -211,10 +312,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               upcoming.when(
                 data: (list) {
                   if (list.isEmpty) {
-                    return const SliverToBoxAdapter(
+                    return SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Center(child: Text('No upcoming departures — try search.')),
+                        padding: const EdgeInsets.all(28),
+                        child: Center(
+                          child: Text(
+                            'No upcoming departures — try search.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey.shade500),
+                          ),
+                        ),
                       ),
                     );
                   }
@@ -222,7 +329,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList.separated(
                       itemCount: list.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
+                      separatorBuilder: (context, index) => const SizedBox(height: 14),
                       itemBuilder: (ctx, i) {
                         final hit = list[i];
                         return TripCard(
@@ -236,8 +343,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 },
                 loading: () => const SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Center(child: CircularProgressIndicator()),
+                    padding: EdgeInsets.all(40),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.ethGreen)),
                   ),
                 ),
                 error: (e, _) => SliverToBoxAdapter(
