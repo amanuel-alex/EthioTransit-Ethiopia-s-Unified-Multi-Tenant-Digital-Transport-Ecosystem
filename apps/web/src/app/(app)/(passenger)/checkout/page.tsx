@@ -9,6 +9,7 @@ import { GlassCard } from "@/components/shared/glass-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth/auth-context";
 import {
@@ -84,7 +85,17 @@ export default function CheckoutPage() {
     }
   };
 
-  if (!draft) return null;
+  if (!draft) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-56 rounded-md bg-white/5" />
+        <div className="grid gap-8 lg:grid-cols-2">
+          <Skeleton className="min-h-[220px] w-full rounded-xl bg-white/5" />
+          <Skeleton className="min-h-[220px] w-full rounded-xl bg-white/5" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

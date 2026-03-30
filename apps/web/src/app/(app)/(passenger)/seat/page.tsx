@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { motion, useReducedMotion } from "framer-motion";
 import { BookingSummaryBar } from "@/components/booking/booking-summary-bar";
 import { SeatMap } from "@/components/booking/seat-map";
 import { PageHeader } from "@/components/shared/page-header";
@@ -12,12 +13,27 @@ import type { ScheduleDetail } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/auth-context";
 import { saveCheckoutDraft } from "@/lib/booking/checkout-storage";
 
+function SeatSkeletonGrid() {
+  const cols = 6;
+  return (
+    <div
+      className="grid max-w-lg gap-2"
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+    >
+      {Array.from({ length: 24 }, (_, i) => (
+        <Skeleton key={i} className="aspect-square rounded-lg bg-white/5" />
+      ))}
+    </div>
+  );
+}
+
 function SeatPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const scheduleId = searchParams.get("scheduleId") ?? "";
   const api = useApi();
   const { logout } = useAuth();
+  const reduceMotion = useReducedMotion();
   const [detail, setDetail] = useState<ScheduleDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -117,8 +133,8 @@ function SeatPageInner() {
   if (loading || !detail) {
     return (
       <div className="space-y-4 pb-32">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-64 w-full max-w-lg" />
+        <Skeleton className="h-10 w-48 rounded-md bg-white/5" />
+        <SeatSkeletonGrid />
       </div>
     );
   }
@@ -131,13 +147,19 @@ function SeatPageInner() {
         title="Choose seats"
         description={`${detail.schedule.route?.origin ?? ""} → ${detail.schedule.route?.destination ?? ""} · ${new Intl.DateTimeFormat("en-ET", { dateStyle: "medium", timeStyle: "short" }).format(new Date(detail.schedule.departsAt))}`}
       />
-      <SeatMap
-        capacity={cap}
-        available={availableSet}
-        occupied={occupiedSet}
-        selected={selected}
-        onToggle={toggle}
-      />
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+        animate={reduceMotion ? false : { opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 380, damping: 32 }}
+      >
+        <SeatMap
+          capacity={cap}
+          available={availableSet}
+          occupied={occupiedSet}
+          selected={selected}
+          onToggle={toggle}
+        />
+      </motion.div>
       <BookingSummaryBar
         seatCount={selected.length}
         unitPrice={detail.schedule.basePrice}

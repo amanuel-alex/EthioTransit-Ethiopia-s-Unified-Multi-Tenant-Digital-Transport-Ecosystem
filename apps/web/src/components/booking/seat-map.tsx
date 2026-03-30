@@ -21,11 +21,22 @@ export function SeatMap({
   const reduce = useReducedMotion();
   const cols = Math.min(10, Math.max(4, Math.ceil(Math.sqrt(capacity))));
 
+  const stagger = reduce ? 0 : 0.022;
+
   return (
-    <div
+    <motion.div
       className="grid gap-2"
       style={{
         gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+      }}
+      initial="hidden"
+      animate="show"
+      variants={{
+        hidden: { opacity: 0 },
+        show: {
+          opacity: 1,
+          transition: { staggerChildren: stagger, delayChildren: reduce ? 0 : 0.04 },
+        },
       }}
     >
       {Array.from({ length: capacity }, (_, i) => i + 1).map((seatNo) => {
@@ -40,6 +51,10 @@ export function SeatMap({
             type="button"
             disabled={disabled}
             onClick={() => !disabled && onToggle(seatNo)}
+            variants={{
+              hidden: { opacity: 0, scale: 0.85 },
+              show: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 420, damping: 26 } },
+            }}
             whileTap={reduce || disabled ? undefined : { scale: 0.92 }}
             className={cn(
               "flex aspect-square items-center justify-center rounded-lg border text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -61,6 +76,6 @@ export function SeatMap({
           </motion.button>
         );
       })}
-    </div>
+    </motion.div>
   );
 }

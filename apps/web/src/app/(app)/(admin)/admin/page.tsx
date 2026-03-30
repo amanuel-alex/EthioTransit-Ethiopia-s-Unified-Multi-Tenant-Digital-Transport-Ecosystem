@@ -15,21 +15,10 @@ import {
   YAxis,
 } from "recharts";
 import { OperatorGlassCard } from "@/components/dashboard/operator-glass-card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { getApiBaseUrl } from "@/lib/api/client";
 import { useApi } from "@/lib/api/hooks";
-import type { AdminCompanyRow } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 
@@ -41,38 +30,13 @@ function fmtEtb(n: number | string) {
   }).format(v);
 }
 
-function statusBadge(status: string) {
-  const s = status.toUpperCase();
-  if (s === "ACTIVE") {
-    return (
-      <Badge className="border-0 bg-emerald-500/20 font-semibold uppercase tracking-wide text-emerald-300">
-        Verified
-      </Badge>
-    );
-  }
-  if (s === "SUSPENDED") {
-    return (
-      <Badge className="border-0 bg-red-500/20 font-semibold uppercase tracking-wide text-red-300">
-        Suspended
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="secondary" className="font-semibold uppercase">
-      {status}
-    </Badge>
-  );
-}
-
 export default function AdminPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const api = useApi();
-  const [companies, setCompanies] = useState<AdminCompanyRow[] | null>(null);
   const [analytics, setAnalytics] = useState<Record<string, unknown> | null>(
     null,
   );
-  const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -85,11 +49,7 @@ export default function AdminPage() {
     if (user?.role !== "ADMIN") return;
     setLoading(true);
     try {
-      const [c, a] = await Promise.all([
-        api.adminCompanies(),
-        api.adminAnalytics(),
-      ]);
-      setCompanies(c.data);
+      const a = await api.adminAnalytics();
       setAnalytics(a);
     } catch (e) {
       const err = e as Error & { status?: number };
@@ -107,17 +67,6 @@ export default function AdminPage() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  const filteredCompanies = useMemo(() => {
-    const list = companies ?? [];
-    const q = filter.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.slug.toLowerCase().includes(q),
-    );
-  }, [companies, filter]);
 
   const barData = useMemo(() => {
     const peak = analytics?.peakBookingTimes as

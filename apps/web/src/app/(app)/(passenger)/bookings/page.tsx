@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { motion, useReducedMotion } from "framer-motion";
 import { GlassCard } from "@/components/shared/glass-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,7 @@ export default function BookingsPage() {
   const router = useRouter();
   const api = useApi();
   const { user, logout } = useAuth();
+  const reduceMotion = useReducedMotion();
   const [rows, setRows] = useState<BookingRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelId, setCancelId] = useState<string | null>(null);
@@ -123,9 +125,27 @@ export default function BookingsPage() {
       );
     }
     return (
-      <ul className="space-y-4">
+      <motion.ul
+        className="space-y-4"
+        initial="hidden"
+        animate="show"
+        variants={{
+          hidden: {},
+          show: { transition: { staggerChildren: reduceMotion ? 0 : 0.05 } },
+        }}
+      >
         {list.map((b) => (
-          <li key={b.id}>
+          <motion.li
+            key={b.id}
+            variants={{
+              hidden: { opacity: 0, y: 10 },
+              show: {
+                opacity: 1,
+                y: 0,
+                transition: { type: "spring", stiffness: 380, damping: 28 },
+              },
+            }}
+          >
             <GlassCard className="p-5 text-left">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -190,9 +210,9 @@ export default function BookingsPage() {
                 </div>
               </div>
             </GlassCard>
-          </li>
+          </motion.li>
         ))}
-      </ul>
+      </motion.ul>
     );
   }
 

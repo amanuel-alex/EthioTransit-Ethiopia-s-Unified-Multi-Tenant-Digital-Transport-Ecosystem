@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { motion, useReducedMotion } from "framer-motion";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RouteResultCard } from "@/components/booking/route-result-card";
 import { ScheduleCard } from "@/components/booking/schedule-card";
+import { GlassCard } from "@/components/shared/glass-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { useApi } from "@/lib/api/hooks";
 import type { RouteSearchRow, ScheduleDetail } from "@/lib/api/types";
@@ -33,6 +35,7 @@ function SearchPageInner() {
   const { user, logout } = useAuth();
   const { companyId, setCompanyId } = useTenant();
   const presets = getOperatorPresets();
+  const reduceMotion = useReducedMotion();
 
   const [origin, setOrigin] = useState(searchParams.get("origin") ?? "");
   const [destination, setDestination] = useState(
@@ -220,7 +223,7 @@ function SearchPageInner() {
         </div>
       ) : null}
 
-      <div className="mb-8 grid gap-4 rounded-xl border bg-card p-6 md:grid-cols-4">
+      <GlassCard className="mb-8 grid gap-4 p-6 md:grid-cols-4">
         <div className="space-y-2 md:col-span-1">
           <Label htmlFor="o">Origin</Label>
           <Input
@@ -256,34 +259,77 @@ function SearchPageInner() {
             {loading ? "Searching…" : "Search"}
           </Button>
         </div>
-      </div>
+      </GlassCard>
 
       {loading && !routes && !schedules ? (
         <div className="space-y-4">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-xl bg-white/5" />
+          ))}
+        </div>
+      ) : null}
+
+      {selectedRoute && loading && !schedules ? (
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-64 rounded-md bg-white/5" />
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-32 w-full rounded-xl bg-white/5" />
+          ))}
         </div>
       ) : null}
 
       {routes && !selectedRoute ? (
-        <div className="space-y-4">
+        <motion.div
+          className="space-y-4"
+          initial="hidden"
+          animate="show"
+          variants={{
+            hidden: {},
+            show: {
+              transition: {
+                staggerChildren: reduceMotion ? 0 : 0.06,
+              },
+            },
+          }}
+        >
           <h2 className="text-lg font-semibold">Routes</h2>
           {routes.length === 0 ? (
             <p className="text-muted-foreground">No routes found.</p>
           ) : (
             routes.map((r) => (
-              <RouteResultCard
+              <motion.div
                 key={r.id}
-                route={r}
-                onSelect={() => void loadSchedules(r)}
-              />
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  show: {
+                    opacity: 1,
+                    y: 0,
+                    transition: { type: "spring", stiffness: 380, damping: 28 },
+                  },
+                }}
+              >
+                <RouteResultCard
+                  route={r}
+                  onSelect={() => void loadSchedules(r)}
+                />
+              </motion.div>
             ))
           )}
-        </div>
+        </motion.div>
       ) : null}
 
       {selectedRoute && schedules ? (
-        <div className="space-y-4">
+        <motion.div
+          className="space-y-4"
+          initial="hidden"
+          animate="show"
+          variants={{
+            hidden: {},
+            show: {
+              transition: { staggerChildren: reduceMotion ? 0 : 0.055 },
+            },
+          }}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-semibold">
               Schedules — {selectedRoute.origin} → {selectedRoute.destination}
@@ -305,15 +351,23 @@ function SearchPageInner() {
           ) : (
             <div className="space-y-4">
               {schedules.map((s) => (
-                <ScheduleCard
+                <motion.div
                   key={s.schedule.id}
-                  detail={s}
-                  onSelect={pickSchedule}
-                />
+                  variants={{
+                    hidden: { opacity: 0, y: 12 },
+                    show: {
+                      opacity: 1,
+                      y: 0,
+                      transition: { type: "spring", stiffness: 400, damping: 28 },
+                    },
+                  }}
+                >
+                  <ScheduleCard detail={s} onSelect={pickSchedule} />
+                </motion.div>
               ))}
             </div>
           )}
-        </div>
+        </motion.div>
       ) : null}
     </div>
   );
