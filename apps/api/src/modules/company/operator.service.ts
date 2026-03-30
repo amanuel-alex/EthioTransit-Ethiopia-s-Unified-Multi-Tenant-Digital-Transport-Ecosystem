@@ -36,6 +36,14 @@ export async function listBuses(companyId: string) {
 }
 
 export async function createBus(companyId: string, data: CreateBus) {
+  const imageUrl =
+    data.imageUrl === undefined || data.imageUrl === ""
+      ? null
+      : data.imageUrl.trim();
+  const vehicleName =
+    data.vehicleName == null || data.vehicleName.trim() === ""
+      ? null
+      : data.vehicleName.trim();
   return prisma.bus.create({
     data: {
       companyId,
@@ -43,6 +51,8 @@ export async function createBus(companyId: string, data: CreateBus) {
       seatCapacity: data.seatCapacity,
       costPerKm: dec(data.costPerKm),
       status: data.status,
+      imageUrl,
+      vehicleName,
     },
     include: { assignedDriver: true },
   });
@@ -71,18 +81,29 @@ export async function updateBus(
     }
   }
 
+  const patch: Prisma.BusUpdateInput = {
+    ...(data.plateNumber !== undefined
+      ? { plateNumber: data.plateNumber.trim() }
+      : {}),
+    ...(data.seatCapacity !== undefined
+      ? { seatCapacity: data.seatCapacity }
+      : {}),
+    ...(data.costPerKm !== undefined ? { costPerKm: dec(data.costPerKm) } : {}),
+    ...(data.status !== undefined ? { status: data.status } : {}),
+  };
+  if (data.imageUrl !== undefined) {
+    patch.imageUrl = data.imageUrl === "" ? null : data.imageUrl.trim();
+  }
+  if (data.vehicleName !== undefined) {
+    patch.vehicleName =
+      data.vehicleName === null || data.vehicleName === ""
+        ? null
+        : data.vehicleName.trim();
+  }
+
   return prisma.bus.update({
     where: { id: busId },
-    data: {
-      ...(data.plateNumber !== undefined
-        ? { plateNumber: data.plateNumber.trim() }
-        : {}),
-      ...(data.seatCapacity !== undefined
-        ? { seatCapacity: data.seatCapacity }
-        : {}),
-      ...(data.costPerKm !== undefined ? { costPerKm: dec(data.costPerKm) } : {}),
-      ...(data.status !== undefined ? { status: data.status } : {}),
-    },
+    data: patch,
     include: { assignedDriver: true },
   });
 }

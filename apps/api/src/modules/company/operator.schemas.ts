@@ -1,11 +1,17 @@
 import { z } from "zod";
 import { BookingStatus, BusStatus, CompanyStatus } from "@prisma/client";
 
+const optionalImageUrl = z
+  .union([z.string().url().max(2048), z.literal("")])
+  .optional();
+
 export const createBusSchema = z.object({
   plateNumber: z.string().min(1).max(32),
   seatCapacity: z.number().int().min(1).max(120),
   costPerKm: z.number().nonnegative(),
   status: z.nativeEnum(BusStatus).optional(),
+  imageUrl: optionalImageUrl,
+  vehicleName: z.string().max(120).optional().nullable(),
 });
 
 export const updateBusSchema = z.object({
@@ -13,6 +19,8 @@ export const updateBusSchema = z.object({
   seatCapacity: z.number().int().min(1).max(120).optional(),
   costPerKm: z.number().nonnegative().optional(),
   status: z.nativeEnum(BusStatus).optional(),
+  imageUrl: optionalImageUrl,
+  vehicleName: z.string().max(120).optional().nullable(),
 });
 
 export const createRouteSchema = z.object({

@@ -126,6 +126,10 @@ model Bus {
   status       BusStatus @default(ACTIVE)
   /// Operational cost assumption for analytics (per km).
   costPerKm    Decimal   @db.Decimal(12, 4)
+  /// Public photo URL (operator-provided; shown on tickets & home).
+  imageUrl     String?
+  /// Display name for passengers (e.g. coach model).
+  vehicleName  String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
