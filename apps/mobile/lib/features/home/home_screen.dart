@@ -104,7 +104,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                         fontWeight: FontWeight.w800,
                                       ),
-
                                 ),
                               ],
                             ),
@@ -114,7 +113,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             shape: const CircleBorder(),
                             child: InkWell(
                               customBorder: const CircleBorder(),
-                              onPressed: () {},
+                              onTap: () {},
                               child: const Padding(
                                 padding: EdgeInsets.all(12),
                                 child: Icon(Icons.notifications_outlined, color: AppColors.ethGreenNeon),
