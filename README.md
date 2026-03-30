@@ -170,11 +170,19 @@ Copy [`apps/web/.env.example`](apps/web/.env.example) to `apps/web/.env.local` a
 
 - **Web:** always run **`pnpm install` from the monorepo root** so `apps/web` gets `@radix-ui/*` and other deps (symlinked by pnpm). The default web dev script uses **`next dev`** (webpack) for reliable resolution on Windows; use **`pnpm --filter @ethiotransit/web dev:turbo`** if you want Turbopack.
 - **API:** copy **`apps/api/.env.example`** → **`apps/api/.env`** for a persistent config. In **non-production**, if **`apps/api/.env`** is missing, the API and **`pnpm --filter @ethiotransit/api db:seed`** load **`.env.example`** automatically (still requires a reachable Postgres matching `DATABASE_URL`).
-- **Bot:** set **`TELEGRAM_BOT_TOKEN`** in `apps/bot/.env` or ignore the bot task when you only need web + API.
+- **Bot:** set **`TELEGRAM_BOT_TOKEN`** and **`API_BASE_URL`** in `apps/bot/.env` (see [Telegram bot](#telegram-bot)).
 
 ## Telegram bot
 
-Copy `apps/bot/.env.example` to `apps/bot/.env` and set `TELEGRAM_BOT_TOKEN`. Then `pnpm --filter @ethiotransit/bot dev`.
+**EthioTransit Transport Booking Bot** (`apps/bot`): **Telegraf** + **Axios**, talks to the same **`apps/api`** as web/mobile.
+
+1. Copy [`apps/bot/.env.example`](apps/bot/.env.example) → `apps/bot/.env` and set **`TELEGRAM_BOT_TOKEN`** (from [@BotFather](https://t.me/BotFather)) and **`API_BASE_URL`** (e.g. `http://localhost:4000`).
+2. Run the API and ensure a **passenger** user exists (e.g. seed `+251900000003` with dev OTP **`AUTH_DEV_CODE`**).
+3. `pnpm --filter @ethiotransit/bot dev` (or `pnpm run build && pnpm start` in `apps/bot`).
+
+**User flow:** `/start` → **Search bus** (popular routes or city pickers → date → route → trip → seat grid) → **Book** → **M-Pesa** or **Chapa** (uses `POST /api/v1/payments/mpesa/initiate` and `.../chapa/initiate`). In dev, mock payments complete immediately and the bot sends a ticket summary. **`/login <phone> <code>`** stores JWT + refresh in memory (per Telegram user; lost on restart). **`/bookings`** lists `GET /api/v1/bookings/user`.
+
+Layout: `src/bot.ts` (entry), `src/commands/register.ts`, `src/handlers/`, `src/services/ethiotransit-api.ts`, `src/utils/`.
 
 ## Shared packages
 
