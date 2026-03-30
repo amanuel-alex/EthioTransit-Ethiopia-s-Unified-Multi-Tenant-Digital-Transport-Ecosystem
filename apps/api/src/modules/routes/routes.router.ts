@@ -30,6 +30,35 @@ const searchQuerySchema = z
 
 export const routesModuleRouter = Router();
 
+const popularQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(40).optional().default(12),
+});
+
+routesModuleRouter.get(
+  "/popular",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const role = req.user?.role;
+      if (role !== UserRole.PASSENGER && role !== UserRole.ADMIN) {
+        next(new HttpError(403, "forbidden", "Not available for this role"));
+        return;
+      }
+      const q = popularQuerySchema.parse(req.query);
+      const data = await routesService.listPopularRoutePairs(q.limit);
+      res.json({ data });
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        next(
+          new HttpError(400, "validation_error", "Invalid query", e.flatten()),
+        );
+        return;
+      }
+      next(e);
+    }
+  },
+);
+
 routesModuleRouter.get(
   "/search",
   requireAuth,

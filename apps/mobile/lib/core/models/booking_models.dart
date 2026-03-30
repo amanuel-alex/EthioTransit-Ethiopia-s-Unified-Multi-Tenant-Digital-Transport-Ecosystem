@@ -41,6 +41,9 @@ class BookingRow {
         origin: route['origin'] as String,
         destination: route['destination'] as String,
         plate: bus['plateNumber'] as String? ?? '',
+        busImageUrl: bus['imageUrl'] as String?,
+        busVehicleName: bus['vehicleName'] as String?,
+        busSeatCapacity: (bus['seatCapacity'] as num?)?.toInt(),
         originStation: StationRef.maybeFrom(route['originStation']),
         destinationStation: StationRef.maybeFrom(route['destinationStation']),
       ),
@@ -57,6 +60,9 @@ class BookingSchedule {
     required this.origin,
     required this.destination,
     required this.plate,
+    this.busImageUrl,
+    this.busVehicleName,
+    this.busSeatCapacity,
     this.originStation,
     this.destinationStation,
   });
@@ -67,6 +73,9 @@ class BookingSchedule {
   final String origin;
   final String destination;
   final String plate;
+  final String? busImageUrl;
+  final String? busVehicleName;
+  final int? busSeatCapacity;
   final StationRef? originStation;
   final StationRef? destinationStation;
 

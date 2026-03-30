@@ -1,5 +1,4 @@
-import type { Prisma } from "@prisma/client";
-import { CompanyStatus } from "@prisma/client";
+import { CompanyStatus, Prisma } from "@prisma/client";
 import { routeWithStationsInclude } from "../../db/route-include.js";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../utils/errors.js";
@@ -96,4 +95,27 @@ export async function searchRoutes(params: SearchRoutesParams) {
     },
     orderBy: { createdAt: "desc" },
   });
+}
+
+/** City pairs with the most paid bookings (cross-operator), for passenger “popular routes”. */
+export async function listPopularRoutePairs(limit = 12) {
+  const take = Math.min(Math.max(Math.floor(limit), 1), 40);
+  const rows = await prisma.$queryRaw<
+    { origin: string; destination: string; bookingCount: bigint }[]
+  >(Prisma.sql`
+    SELECT r.origin, r.destination, COUNT(b.id)::bigint AS "bookingCount"
+    FROM "Booking" b
+    INNER JOIN "Schedule" s ON s.id = b."scheduleId"
+    INNER JOIN "Route" r ON r.id = s."routeId"
+    INNER JOIN "Company" c ON c.id = b."companyId"
+    WHERE b.status = 'PAID' AND c.status = 'ACTIVE'
+    GROUP BY r.origin, r.destination
+    ORDER BY COUNT(b.id) DESC
+    LIMIT ${take}
+  `);
+  return rows.map((r) => ({
+    origin: r.origin,
+    destination: r.destination,
+    bookingCount: Number(r.bookingCount),
+  }));
 }

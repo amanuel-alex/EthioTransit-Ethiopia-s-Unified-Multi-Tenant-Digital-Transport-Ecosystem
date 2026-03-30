@@ -6,17 +6,23 @@ class BusInfo {
     required this.id,
     required this.plateNumber,
     required this.seatCapacity,
+    this.imageUrl,
+    this.vehicleName,
   });
 
   final String id;
   final String plateNumber;
   final int seatCapacity;
+  final String? imageUrl;
+  final String? vehicleName;
 
   factory BusInfo.fromJson(Map<String, dynamic> j) {
     return BusInfo(
       id: j['id'] as String,
       plateNumber: j['plateNumber'] as String,
       seatCapacity: (j['seatCapacity'] as num).toInt(),
+      imageUrl: j['imageUrl'] as String?,
+      vehicleName: j['vehicleName'] as String?,
     );
   }
 }

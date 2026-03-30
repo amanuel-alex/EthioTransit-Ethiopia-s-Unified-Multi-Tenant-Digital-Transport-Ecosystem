@@ -125,6 +125,9 @@ async function main() {
     },
   });
 
+  const demoCoachImage =
+    "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80";
+
   const bus = await prisma.bus.upsert({
     where: {
       companyId_plateNumber: {
@@ -132,12 +135,17 @@ async function main() {
         plateNumber: "AA-12345",
       },
     },
-    update: {},
+    update: {
+      imageUrl: demoCoachImage,
+      vehicleName: "Volvo 9700 Coach",
+    },
     create: {
       companyId: company.id,
       plateNumber: "AA-12345",
       seatCapacity: 45,
       costPerKm: 12.5,
+      imageUrl: demoCoachImage,
+      vehicleName: "Volvo 9700 Coach",
     },
   });
 

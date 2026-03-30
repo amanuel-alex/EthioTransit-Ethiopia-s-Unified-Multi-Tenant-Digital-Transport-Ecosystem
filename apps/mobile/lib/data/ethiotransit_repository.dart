@@ -7,6 +7,7 @@ import '../constants/api_constants.dart';
 import '../core/models/auth_session.dart';
 import '../core/models/booking_models.dart';
 import '../core/models/location_models.dart';
+import '../core/models/popular_route.dart';
 import '../core/models/route_search_row.dart';
 import '../core/models/schedule_detail.dart';
 import '../core/storage/token_storage.dart';
@@ -138,6 +139,21 @@ class EthiotransitRepository {
       final list = res.data!['data'] as List<dynamic>;
       return list
           .map((e) => CityListItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _toApi(e);
+    }
+  }
+
+  Future<List<PopularRouteOption>> popularRoutes({int limit = 14}) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/routes/popular',
+        queryParameters: {'limit': limit},
+      );
+      final list = res.data!['data'] as List<dynamic>;
+      return list
+          .map((e) => PopularRouteOption.fromJson(e as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
       throw _toApi(e);
