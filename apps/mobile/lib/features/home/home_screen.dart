@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../constants/popular_routes.dart';
+import '../../core/models/booking_models.dart';
 import '../../core/models/location_models.dart';
 import '../../core/models/schedule_detail.dart';
 import '../../data/api_exception.dart';
 import '../../data/ethiotransit_repository.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/passenger_bookings_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/featured_booking_banner.dart';
 import '../../widgets/home_coach_hero.dart';
 import '../../widgets/trip_card.dart';
 import '../search/search_results_screen.dart';
@@ -18,6 +21,26 @@ final _upcomingProvider = FutureProvider.autoDispose<List<TripHit>>((ref) async 
   final repo = ref.watch(ethiotransitRepositoryProvider);
   return repo.upcomingTrips(limit: 6);
 });
+
+final _popularRoutesProvider =
+    FutureProvider.autoDispose<List<PopularRouteOption>>((ref) async {
+  try {
+    return await ref.watch(ethiotransitRepositoryProvider).popularRoutes(limit: 16);
+  } catch (_) {
+    return [];
+  }
+});
+
+BookingRow? _pickSpotlightBooking(List<BookingRow> all) {
+  final now = DateTime.now();
+  final candidates = all.where((b) {
+    if (b.status == 'CANCELLED') return false;
+    if (b.status == 'PENDING') return true;
+    return b.schedule.departsAt.isAfter(now);
+  }).toList()
+    ..sort((a, b) => a.schedule.departsAt.compareTo(b.schedule.departsAt));
+  return candidates.isEmpty ? null : candidates.first;
+}
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -151,8 +174,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authSessionProvider).asData?.value;
     final upcoming = ref.watch(_upcomingProvider);
+    final popularAsync = ref.watch(_popularRoutesProvider);
+    final bookingsAsync = ref.watch(passengerBookingsProvider);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final dateFmt = DateFormat.yMMMd();
+
+    final popularChips = popularAsync.when(
+      data: (list) => list.isEmpty ? kPopularRoutesFallback : list,
+      loading: () => kPopularRoutesFallback,
+      error: (_, __) => kPopularRoutesFallback,
+    );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -238,7 +269,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       const SizedBox(height: 18),
                       HomeCoachHero(dark: dark),
-                      const SizedBox(height: 22),
+                      ...bookingsAsync.when(
+                        data: (bookings) {
+                          final spot = _pickSpotlightBooking(bookings);
+                          if (spot == null) {
+                            return <Widget>[const SizedBox(height: 22)];
+                          }
+                          return <Widget>[
+                            const SizedBox(height: 14),
+                            FeaturedBookingBanner(booking: spot, dark: dark),
+                            const SizedBox(height: 18),
+                          ];
+                        },
+                        loading: () => <Widget>[const SizedBox(height: 22)],
+                        error: (_, __) => <Widget>[const SizedBox(height: 22)],
+                      ),
                       DecoratedBox(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(24),
@@ -450,14 +495,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               fontWeight: FontWeight.w800,
                             ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Based on paid tickets across operators',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: dark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B),
+                              fontSize: 12,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
                       Wrap(
                         spacing: 10,
                         runSpacing: 10,
-                        children: kPopularRoutes.map((r) {
+                        children: popularChips.map((r) {
                           return ActionChip(
                             avatar: Icon(Icons.route_rounded, size: 18, color: AppColors.ethGreenNeon),
-                            label: Text('${r.origin} → ${r.destination}'),
+                            label: Text(
+                              r.bookingCount > 0
+                                  ? '${r.origin} → ${r.destination} · ${r.bookingCount}'
+                                  : '${r.origin} → ${r.destination}',
+                              style: const TextStyle(fontSize: 13),
+                            ),
                             onPressed: () async {
                               final o = _cityByName(r.origin);
                               final d = _cityByName(r.destination);
@@ -487,7 +545,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                           ),
                           TextButton.icon(
-                            onPressed: () => ref.invalidate(_upcomingProvider),
+                            onPressed: () {
+                              ref.invalidate(_upcomingProvider);
+                              ref.invalidate(passengerBookingsProvider);
+                              ref.invalidate(_popularRoutesProvider);
+                            },
                             icon: const Icon(Icons.refresh_rounded, size: 18),
                             label: const Text('Refresh'),
                             style: TextButton.styleFrom(foregroundColor: AppColors.ethGreenNeon),

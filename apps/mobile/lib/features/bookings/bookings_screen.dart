@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/models/booking_models.dart';
 import '../../data/api_exception.dart';
-import '../../data/ethiotransit_repository.dart';
+import '../../providers/passenger_bookings_provider.dart';
 import '../../theme/app_theme.dart';
 import '../checkout/checkout_screen.dart';
 import '../ticket/ticket_screen.dart';
@@ -22,16 +22,12 @@ Color _statusTint(String status) {
   }
 }
 
-final _bookingsProvider = FutureProvider.autoDispose<List<BookingRow>>((ref) async {
-  return ref.watch(ethiotransitRepositoryProvider).listUserBookings();
-});
-
 class BookingsScreen extends ConsumerWidget {
   const BookingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(_bookingsProvider);
+    final async = ref.watch(passengerBookingsProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
