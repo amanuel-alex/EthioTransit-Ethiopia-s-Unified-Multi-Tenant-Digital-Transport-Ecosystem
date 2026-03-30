@@ -11,10 +11,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api/hooks";
-import type { BookingRow } from "@/lib/api/types";
+import type { BookingRow, PopularRouteRow } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/auth-context";
 import { saveCheckoutDraft } from "@/lib/booking/checkout-storage";
 import { routeLineLabel } from "@/lib/route-label";
+
+const FALLBACK_POPULAR: PopularRouteRow[] = [
+  { origin: "Addis Ababa", destination: "Hawassa", bookingCount: 0 },
+  { origin: "Addis Ababa", destination: "Bahir Dar", bookingCount: 0 },
+  { origin: "Addis Ababa", destination: "Dire Dawa", bookingCount: 0 },
+  { origin: "Hawassa", destination: "Addis Ababa", bookingCount: 0 },
+];
 
 function fmtMoney(v: unknown) {
   if (v === null || v === undefined) return "—";
@@ -38,6 +45,8 @@ export default function HomePage() {
 
   const [bookings, setBookings] = useState<BookingRow[] | null>(null);
   const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [popularRoutes, setPopularRoutes] =
+    useState<PopularRouteRow[]>(FALLBACK_POPULAR);
 
   useEffect(() => {
     if (user?.role === "COMPANY") router.replace("/dashboard");
@@ -102,6 +111,38 @@ export default function HomePage() {
     };
   }, [user?.role, api, logout, router]);
 
+  useEffect(() => {
+    if (user?.role !== "PASSENGER") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await api.popularRoutes(14);
+        if (!cancelled && data.length > 0) setPopularRoutes(data);
+      } catch {
+        /* keep fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role, api]);
+
+  const spotlightBooking = useMemo(() => {
+    const list = bookings ?? [];
+    const now = Date.now();
+    const candidates = list.filter((b) => {
+      if (b.status === "CANCELLED") return false;
+      if (b.status === "PENDING") return true;
+      return new Date(b.schedule.departsAt).getTime() >= now;
+    });
+    candidates.sort(
+      (a, b) =>
+        new Date(a.schedule.departsAt).getTime() -
+        new Date(b.schedule.departsAt).getTime(),
+    );
+    return candidates[0] ?? null;
+  }, [bookings]);
+
   const upcomingBookings = useMemo(() => {
     const list = bookings ?? [];
     const now = Date.now();
@@ -147,6 +188,29 @@ export default function HomePage() {
           </Link>
           .
         </p>
+        <div className="flex flex-wrap gap-2 pt-2">
+          <span className="w-full text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Popular routes (by paid tickets)
+          </span>
+          {popularRoutes.map((r) => (
+            <Link
+              key={`${r.origin}-${r.destination}`}
+              href={`/search?${new URLSearchParams({
+                origin: r.origin,
+                destination: r.destination,
+                date: new Date().toISOString().slice(0, 10),
+              }).toString()}`}
+              className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-[hsl(152,65%,48%)]/40 hover:bg-white/10"
+            >
+              {r.origin} → {r.destination}
+              {r.bookingCount > 0 ? (
+                <span className="ml-1 text-[hsl(152,65%,52%)]">
+                  · {r.bookingCount}
+                </span>
+              ) : null}
+            </Link>
+          ))}
+        </div>
       </motion.div>
 
       <motion.section
@@ -180,6 +244,49 @@ export default function HomePage() {
           </Button>
         </div>
 
+        {!bookingsLoading && spotlightBooking ? (
+          <div className="mb-4 flex gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4 ring-1 ring-white/5">
+            <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-zinc-800">
+              {spotlightBooking.schedule.bus.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={spotlightBooking.schedule.bus.imageUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-3xl text-zinc-500">
+                  🚌
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(152,65%,52%)]">
+                Your vehicle
+              </p>
+              <p className="mt-1 font-semibold text-white">
+                {spotlightBooking.schedule.bus.vehicleName?.trim() ||
+                  "Intercity coach"}
+              </p>
+              <p className="mt-0.5 text-sm text-zinc-300">
+                {routeLineLabel(spotlightBooking.schedule.route)}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                {spotlightBooking.schedule.bus.plateNumber}
+                {spotlightBooking.schedule.bus.seatCapacity != null
+                  ? ` · ${spotlightBooking.schedule.bus.seatCapacity} seats`
+                  : ""}
+              </p>
+              <p className="mt-1 text-sm text-zinc-400">
+                {new Intl.DateTimeFormat("en-ET", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(new Date(spotlightBooking.schedule.departsAt))}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {bookingsLoading ? (
           <div className="space-y-2" aria-busy="true">
             <Skeleton className="h-[5.5rem] w-full rounded-xl bg-white/10" />
@@ -205,10 +312,19 @@ export default function HomePage() {
               <li key={b.id}>
                 <div className="rounded-xl border border-white/10 bg-zinc-900/50 p-4 ring-1 ring-white/5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
+                    {b.schedule.bus.imageUrl ? (
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-zinc-800">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={b.schedule.bus.imageUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ) : null}
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium text-white">
-                        {b.schedule.route.origin} →{" "}
-                        {b.schedule.route.destination}
+                        {routeLineLabel(b.schedule.route)}
                       </p>
                       <p className="mt-1 text-xs text-zinc-400 sm:text-sm">
                         {new Intl.DateTimeFormat("en-ET", {

@@ -46,6 +46,8 @@ type BusRow = {
   seatCapacity: number;
   costPerKm: unknown;
   status: string;
+  imageUrl?: string | null;
+  vehicleName?: string | null;
   assignedDriver?: { id: string; fullName: string } | null;
 };
 
@@ -65,6 +67,8 @@ export default function FleetManagementPage() {
     seatCapacity: 45,
     costPerKm: 12,
     status: "ACTIVE" as string,
+    imageUrl: "" as string,
+    vehicleName: "" as string,
   });
 
   useEffect(() => {
@@ -101,6 +105,8 @@ export default function FleetManagementPage() {
       seatCapacity: 45,
       costPerKm: 12,
       status: "ACTIVE",
+      imageUrl: "",
+      vehicleName: "",
     });
     setOpen(true);
   };
@@ -112,6 +118,8 @@ export default function FleetManagementPage() {
       seatCapacity: b.seatCapacity,
       costPerKm: Number(b.costPerKm),
       status: b.status,
+      imageUrl: b.imageUrl ?? "",
+      vehicleName: b.vehicleName ?? "",
     });
     setOpen(true);
   };
@@ -125,6 +133,8 @@ export default function FleetManagementPage() {
           seatCapacity: form.seatCapacity,
           costPerKm: form.costPerKm,
           status: form.status,
+          imageUrl: form.imageUrl.trim(),
+          vehicleName: form.vehicleName.trim() || null,
         });
         toast.success("Bus updated");
       } else {
@@ -133,6 +143,8 @@ export default function FleetManagementPage() {
           seatCapacity: form.seatCapacity,
           costPerKm: form.costPerKm,
           status: form.status,
+          imageUrl: form.imageUrl.trim(),
+          vehicleName: form.vehicleName.trim() || undefined,
         });
         toast.success("Bus added");
       }
@@ -164,7 +176,8 @@ export default function FleetManagementPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">Fleet</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Buses, capacity, status, and cost-per-km for analytics.
+            Add a photo URL and vehicle name — passengers see them on tickets and
+            home after booking.
           </p>
         </div>
         <Button
@@ -185,6 +198,7 @@ export default function FleetManagementPage() {
           <Table>
             <TableHeader>
               <TableRow className="border-white/10 hover:bg-transparent">
+                <TableHead className="w-14 text-zinc-400">Photo</TableHead>
                 <TableHead className="text-zinc-400">Plate</TableHead>
                 <TableHead className="text-zinc-400">Capacity</TableHead>
                 <TableHead className="text-zinc-400">Status</TableHead>
@@ -292,6 +306,32 @@ export default function FleetManagementPage() {
                 }
                 className="border-white/10 bg-zinc-900/80 text-white"
               />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-zinc-300">Vehicle name (passengers)</Label>
+              <Input
+                value={form.vehicleName}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, vehicleName: e.target.value }))
+                }
+                placeholder="e.g. Volvo 9700 Coach"
+                className="border-white/10 bg-zinc-900/80 text-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-zinc-300">Vehicle photo URL</Label>
+              <Input
+                value={form.imageUrl}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, imageUrl: e.target.value }))
+                }
+                placeholder="https://… (hosted image link)"
+                className="border-white/10 bg-zinc-900/80 text-white"
+              />
+              <p className="text-xs text-zinc-500">
+                Paste a direct link to an image (e.g. from your site or Unsplash).
+                Clear the field to remove.
+              </p>
             </div>
             <div className="space-y-2">
               <Label className="text-zinc-300">Status</Label>

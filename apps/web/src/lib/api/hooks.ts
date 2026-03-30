@@ -11,6 +11,7 @@ import type {
   CompanyDashboardStats,
   CreateBookingResponse,
   MpesaInitResponse,
+  PopularRouteRow,
   RouteSearchRow,
   ScheduleDetail,
 } from "./types";
@@ -58,6 +59,12 @@ export function useApi() {
           { method: "GET", auth },
         );
       },
+
+      popularRoutes: (limit = 14) =>
+        apiRequest<{ data: PopularRouteRow[] }>(
+          `/api/v1/routes/popular?limit=${limit}`,
+          { method: "GET", auth },
+        ),
 
       listCities: () =>
         apiRequest<{

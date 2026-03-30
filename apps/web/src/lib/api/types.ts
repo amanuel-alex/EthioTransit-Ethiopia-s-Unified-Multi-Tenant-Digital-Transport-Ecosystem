@@ -52,7 +52,13 @@ export type ScheduleDetail = {
       originStation?: StationRef | null;
       destinationStation?: StationRef | null;
     };
-    bus: { id: string; plateNumber: string; seatCapacity: number };
+    bus: {
+      id: string;
+      plateNumber: string;
+      seatCapacity: number;
+      imageUrl?: string | null;
+      vehicleName?: string | null;
+    };
   };
   availableSeats: number[];
   occupiedSeats: number[];
@@ -86,9 +92,20 @@ export type BookingRow = {
       originStation?: StationRef | null;
       destinationStation?: StationRef | null;
     };
-    bus: { plateNumber: string };
+    bus: {
+      plateNumber: string;
+      seatCapacity?: number;
+      imageUrl?: string | null;
+      vehicleName?: string | null;
+    };
   };
   seats: { seatNo: number }[];
+};
+
+export type PopularRouteRow = {
+  origin: string;
+  destination: string;
+  bookingCount: number;
 };
 
 export type MpesaInitResponse = {
