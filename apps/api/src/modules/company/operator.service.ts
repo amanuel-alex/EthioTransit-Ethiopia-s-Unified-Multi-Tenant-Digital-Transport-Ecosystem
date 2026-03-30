@@ -2,7 +2,7 @@ import { BookingStatus, Prisma } from "@prisma/client";
 import type { z } from "zod";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../utils/errors.js";
-import type {
+import {
   createBusSchema,
   createDriverSchema,
   createRouteSchema,
