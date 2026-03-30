@@ -74,11 +74,23 @@ export function useApi() {
           auth,
         }),
 
-      listCompanyBookings: () =>
-        apiRequest<{ data: BookingRow[] }>("/api/v1/bookings/company", {
-          method: "GET",
-          auth,
-        }),
+      listCompanyBookings: (params?: {
+        from?: string;
+        to?: string;
+        routeId?: string;
+        status?: string;
+      }) => {
+        const q = new URLSearchParams();
+        if (params?.from) q.set("from", params.from);
+        if (params?.to) q.set("to", params.to);
+        if (params?.routeId) q.set("routeId", params.routeId);
+        if (params?.status) q.set("status", params.status);
+        const qs = q.toString();
+        return apiRequest<{ data: BookingRow[] }>(
+          `/api/v1/bookings/company${qs ? `?${qs}` : ""}`,
+          { method: "GET", auth },
+        );
+      },
 
       initiateMpesa: (bookingId: string, phoneNumber: string) =>
         apiRequest<MpesaInitResponse>("/api/v1/payments/mpesa/initiate", {
@@ -119,6 +131,97 @@ export function useApi() {
 
       adminAnalytics: () =>
         apiRequest<Record<string, unknown>>("/api/v1/admin/analytics", {
+          method: "GET",
+          auth,
+        }),
+
+      adminPatchCompany: (companyId: string, status: "ACTIVE" | "SUSPENDED") =>
+        apiRequest<AdminCompanyRow>(`/api/v1/admin/companies/${companyId}`, {
+          method: "PATCH",
+          json: { status },
+          auth,
+        }),
+
+      adminBookings: (params?: {
+        page?: number;
+        limit?: number;
+        companyId?: string;
+        status?: string;
+        from?: string;
+        to?: string;
+      }) => {
+        const q = new URLSearchParams();
+        if (params?.page != null) q.set("page", String(params.page));
+        if (params?.limit != null) q.set("limit", String(params.limit));
+        if (params?.companyId) q.set("companyId", params.companyId);
+        if (params?.status) q.set("status", params.status);
+        if (params?.from) q.set("from", params.from);
+        if (params?.to) q.set("to", params.to);
+        return apiRequest<{
+          data: BookingRow[];
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+        }>(`/api/v1/admin/bookings?${q.toString()}`, { method: "GET", auth });
+      },
+
+      adminUsers: (params?: {
+        page?: number;
+        limit?: number;
+        role?: string;
+      }) => {
+        const q = new URLSearchParams();
+        if (params?.page != null) q.set("page", String(params.page));
+        if (params?.limit != null) q.set("limit", String(params.limit));
+        if (params?.role) q.set("role", params.role);
+        return apiRequest<{
+          data: {
+            id: string;
+            phone: string;
+            role: string;
+            companyId: string | null;
+            createdAt: string;
+            company: { name: string; slug: string } | null;
+          }[];
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+        }>(`/api/v1/admin/users?${q.toString()}`, { method: "GET", auth });
+      },
+
+      companyBuses: () =>
+        apiRequest<{ data: unknown[] }>("/api/v1/company/buses", {
+          method: "GET",
+          auth,
+        }),
+
+      companyRoutes: () =>
+        apiRequest<{ data: unknown[] }>("/api/v1/company/routes", {
+          method: "GET",
+          auth,
+        }),
+
+      companySchedules: (params?: { from?: string; to?: string }) => {
+        const q = new URLSearchParams();
+        if (params?.from) q.set("from", params.from);
+        if (params?.to) q.set("to", params.to);
+        const qs = q.toString();
+        return apiRequest<{ data: unknown[] }>(
+          `/api/v1/company/schedules${qs ? `?${qs}` : ""}`,
+          { method: "GET", auth },
+        );
+      },
+
+      companyDrivers: () =>
+        apiRequest<{ data: unknown[] }>("/api/v1/company/drivers", {
+          method: "GET",
+          auth,
+        }),
+
+      companyFinance: () =>
+        apiRequest<Record<string, unknown>>("/api/v1/company/finance", {
           method: "GET",
           auth,
         }),

@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { OperatorGlassCard } from "@/components/dashboard/operator-glass-card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,36 +34,34 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth/auth-context";
 import {
-  createBusAction,
-  deleteBusAction,
-  updateBusAction,
+  createDriverAction,
+  deleteDriverAction,
+  updateDriverAction,
 } from "@/lib/server/actions/operator";
 
-type BusRow = {
+type BusMini = { id: string; plateNumber: string };
+type DriverRow = {
   id: string;
-  plateNumber: string;
-  seatCapacity: number;
-  costPerKm: unknown;
-  status: string;
-  assignedDriver?: { id: string; fullName: string } | null;
+  fullName: string;
+  salary: unknown;
+  assignedBusId: string | null;
+  assignedBus: BusMini | null;
 };
 
-const STATUSES = ["ACTIVE", "MAINTENANCE", "INACTIVE"] as const;
-
-export default function FleetManagementPage() {
+export default function OperatorStaffPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const api = useApi();
-  const [rows, setRows] = useState<BusRow[] | null>(null);
+  const [rows, setRows] = useState<DriverRow[] | null>(null);
+  const [buses, setBuses] = useState<BusMini[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<BusRow | null>(null);
+  const [editing, setEditing] = useState<DriverRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    plateNumber: "",
-    seatCapacity: 45,
-    costPerKm: 12,
-    status: "ACTIVE" as string,
+    fullName: "",
+    salary: 15000,
+    assignedBusId: "__none__" as string,
   });
 
   useEffect(() => {
@@ -75,8 +72,17 @@ export default function FleetManagementPage() {
     if (user?.role !== "COMPANY") return;
     setLoading(true);
     try {
-      const r = await api.companyBuses();
-      setRows((r.data as BusRow[]) ?? []);
+      const [d, b] = await Promise.all([
+        api.companyDrivers(),
+        api.companyBuses(),
+      ]);
+      setRows((d.data as DriverRow[]) ?? []);
+      setBuses(
+        ((b.data as { id: string; plateNumber: string }[]) ?? []).map((x) => ({
+          id: x.id,
+          plateNumber: x.plateNumber,
+        })),
+      );
     } catch (e) {
       const err = e as Error & { status?: number };
       if (err.status === 401) {
@@ -84,7 +90,7 @@ export default function FleetManagementPage() {
         router.push("/auth");
         return;
       }
-      toast.error(err.message ?? "Failed to load buses");
+      toast.error(err.message ?? "Failed to load drivers");
     } finally {
       setLoading(false);
     }
@@ -97,21 +103,19 @@ export default function FleetManagementPage() {
   const openCreate = () => {
     setEditing(null);
     setForm({
-      plateNumber: "",
-      seatCapacity: 45,
-      costPerKm: 12,
-      status: "ACTIVE",
+      fullName: "",
+      salary: 15000,
+      assignedBusId: "__none__",
     });
     setOpen(true);
   };
 
-  const openEdit = (b: BusRow) => {
-    setEditing(b);
+  const openEdit = (row: DriverRow) => {
+    setEditing(row);
     setForm({
-      plateNumber: b.plateNumber,
-      seatCapacity: b.seatCapacity,
-      costPerKm: Number(b.costPerKm),
-      status: b.status,
+      fullName: row.fullName,
+      salary: Number(row.salary),
+      assignedBusId: row.assignedBusId ?? "__none__",
     });
     setOpen(true);
   };
@@ -119,22 +123,22 @@ export default function FleetManagementPage() {
   const submit = async () => {
     setSaving(true);
     try {
+      const assigned =
+        form.assignedBusId === "__none__" ? null : form.assignedBusId;
       if (editing) {
-        await updateBusAction(editing.id, {
-          plateNumber: form.plateNumber.trim(),
-          seatCapacity: form.seatCapacity,
-          costPerKm: form.costPerKm,
-          status: form.status,
+        await updateDriverAction(editing.id, {
+          fullName: form.fullName.trim(),
+          salary: form.salary,
+          assignedBusId: assigned,
         });
-        toast.success("Bus updated");
+        toast.success("Driver updated");
       } else {
-        await createBusAction({
-          plateNumber: form.plateNumber.trim(),
-          seatCapacity: form.seatCapacity,
-          costPerKm: form.costPerKm,
-          status: form.status,
+        await createDriverAction({
+          fullName: form.fullName.trim(),
+          salary: form.salary,
+          assignedBusId: assigned,
         });
-        toast.success("Bus added");
+        toast.success("Driver added");
       }
       setOpen(false);
       await load();
@@ -145,11 +149,11 @@ export default function FleetManagementPage() {
     }
   };
 
-  const remove = async (b: BusRow) => {
-    if (!confirm(`Remove bus ${b.plateNumber}?`)) return;
+  const remove = async (row: DriverRow) => {
+    if (!confirm(`Remove ${row.fullName}?`)) return;
     try {
-      await deleteBusAction(b.id);
-      toast.success("Bus removed");
+      await deleteDriverAction(row.id);
+      toast.success("Removed");
       await load();
     } catch (e) {
       toast.error((e as Error).message ?? "Delete failed");
@@ -162,17 +166,17 @@ export default function FleetManagementPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Fleet</h1>
+          <h1 className="text-2xl font-bold text-white">Staff</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Buses, capacity, status, and cost-per-km for analytics.
+            Drivers, salaries, and bus assignment.
           </p>
         </div>
         <Button
           onClick={openCreate}
-          className="rounded-full bg-[hsl(152,65%,44%)] font-semibold text-zinc-950 hover:bg-[hsl(152,65%,50%)]"
+          className="rounded-full bg-[hsl(152,65%,44%)] font-semibold text-zinc-950"
         >
           <Plus className="mr-2 h-4 w-4" />
-          Add bus
+          Add driver
         </Button>
       </div>
 
@@ -185,36 +189,25 @@ export default function FleetManagementPage() {
           <Table>
             <TableHeader>
               <TableRow className="border-white/10 hover:bg-transparent">
-                <TableHead className="text-zinc-400">Plate</TableHead>
-                <TableHead className="text-zinc-400">Capacity</TableHead>
-                <TableHead className="text-zinc-400">Status</TableHead>
-                <TableHead className="text-zinc-400">Cost / km</TableHead>
-                <TableHead className="text-zinc-400">Driver</TableHead>
+                <TableHead className="text-zinc-400">Name</TableHead>
+                <TableHead className="text-zinc-400">Salary (ETB)</TableHead>
+                <TableHead className="text-zinc-400">Assigned bus</TableHead>
                 <TableHead className="w-[100px] text-right text-zinc-400">
                   Actions
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(rows ?? []).map((b) => (
-                <TableRow key={b.id} className="border-white/10">
+              {(rows ?? []).map((row) => (
+                <TableRow key={row.id} className="border-white/10">
                   <TableCell className="font-medium text-white">
-                    {b.plateNumber}
-                  </TableCell>
-                  <TableCell className="text-zinc-300">{b.seatCapacity}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className="border-0 bg-white/10 capitalize text-zinc-200"
-                    >
-                      {b.status.toLowerCase()}
-                    </Badge>
+                    {row.fullName}
                   </TableCell>
                   <TableCell className="tabular-nums text-zinc-300">
-                    {String(b.costPerKm)} ETB
+                    {String(row.salary)}
                   </TableCell>
                   <TableCell className="text-zinc-400">
-                    {b.assignedDriver?.fullName ?? "—"}
+                    {row.assignedBus?.plateNumber ?? "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button
@@ -222,7 +215,7 @@ export default function FleetManagementPage() {
                       variant="ghost"
                       size="icon"
                       className="text-zinc-400 hover:text-white"
-                      onClick={() => openEdit(b)}
+                      onClick={() => openEdit(row)}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -231,7 +224,7 @@ export default function FleetManagementPage() {
                       variant="ghost"
                       size="icon"
                       className="text-zinc-400 hover:text-red-400"
-                      onClick={() => remove(b)}
+                      onClick={() => remove(row)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -247,85 +240,63 @@ export default function FleetManagementPage() {
         <DialogContent className="border-white/10 bg-[#0a0a0a] text-zinc-100 sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white">
-              {editing ? "Edit bus" : "Add bus"}
+              {editing ? "Edit driver" : "New driver"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label className="text-zinc-300">Plate number</Label>
+              <Label className="text-zinc-300">Full name</Label>
               <Input
-                value={form.plateNumber}
+                value={form.fullName}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, plateNumber: e.target.value }))
+                  setForm((f) => ({ ...f, fullName: e.target.value }))
                 }
                 className="border-white/10 bg-zinc-900/80 text-white"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-zinc-300">Seat capacity</Label>
-              <Input
-                type="number"
-                min={1}
-                max={120}
-                value={form.seatCapacity}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    seatCapacity: Number(e.target.value) || 1,
-                  }))
-                }
-                className="border-white/10 bg-zinc-900/80 text-white"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-zinc-300">Cost per km (ETB)</Label>
+              <Label className="text-zinc-300">Monthly salary (ETB)</Label>
               <Input
                 type="number"
                 min={0}
-                step={0.01}
-                value={form.costPerKm}
+                value={form.salary}
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
-                    costPerKm: Number(e.target.value) || 0,
+                    salary: Number(e.target.value) || 0,
                   }))
                 }
                 className="border-white/10 bg-zinc-900/80 text-white"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-zinc-300">Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}
-              >
-                <SelectTrigger className="border-white/10 bg-zinc-900/80 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="space-y-2">
+                  <Label className="text-zinc-300">Assign bus</Label>
+                  <Select
+                    value={form.assignedBusId}
+                    onValueChange={(v) =>
+                      setForm((f) => ({ ...f, assignedBusId: v }))
+                    }
+                  >
+                    <SelectTrigger className="border-white/10 bg-zinc-900/80 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
+                      {buses.map((bus) => (
+                        <SelectItem key={bus.id} value={bus.id}>
+                          {bus.plateNumber}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
           </div>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              className="border-white/15 bg-transparent text-zinc-200"
-              onClick={() => setOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
             <Button
-              type="button"
-              disabled={
-                saving || !form.plateNumber.trim() || form.seatCapacity < 1
-              }
+              disabled={saving || !form.fullName.trim()}
               onClick={() => void submit()}
               className="bg-[hsl(152,65%,44%)] font-semibold text-zinc-950"
             >

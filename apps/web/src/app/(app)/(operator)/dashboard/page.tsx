@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   ArrowDownRight,
   Banknote,
+  Bus,
   Download,
   Route,
   TrendingUp,
@@ -77,6 +78,9 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<CompanyDashboardStats | null>(null);
   const [revenue, setRevenue] = useState<RevenuePayload | null>(null);
   const [bookings, setBookings] = useState<BookingRow[] | null>(null);
+  const [finance, setFinance] = useState<Record<string, unknown> | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -89,14 +93,16 @@ export default function DashboardPage() {
     if (user?.role !== "COMPANY") return;
     setLoading(true);
     try {
-      const [d, r, b] = await Promise.all([
+      const [d, r, b, f] = await Promise.all([
         api.companyDashboard(),
         api.companyRevenue(),
         api.listCompanyBookings(),
+        api.companyFinance(),
       ]);
       setStats(d);
       setRevenue(r as RevenuePayload);
       setBookings(b.data);
+      setFinance(f);
     } catch (e) {
       const err = e as Error & { status?: number };
       if (err.status === 401) {
@@ -156,6 +162,11 @@ export default function DashboardPage() {
   const grossDisplay = stats
     ? fmtEtb(stats.revenueCompleted.companyEarnings)
     : "—";
+  const netProfit =
+    finance?.netProfitEstimate != null
+      ? fmtEtb(String(finance.netProfitEstimate))
+      : "—";
+  const activeBuses = stats?.activeBuses ?? "—";
 
   return (
     <div className="relative min-h-[60vh]">
@@ -193,7 +204,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            <div className="mb-8 grid gap-4 md:grid-cols-3">
+            <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <OperatorGlassCard className="p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -221,17 +232,14 @@ export default function DashboardPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                      Trip volume
+                      Trips today
                     </p>
                     <p className="mt-2 text-2xl font-semibold tabular-nums text-white">
-                      {busTripsTotal}{" "}
-                      <span className="text-base font-normal text-zinc-500">
-                        paid trips
-                      </span>
+                      {stats.tripsToday ?? stats.bookingsToday}
                     </p>
                     <p className="mt-2 text-xs text-zinc-400">
-                      {stats.bookingsToday} bookings today ·{" "}
-                      {stats.pendingBookings} awaiting payment
+                      {stats.pendingBookings} bookings awaiting payment ·{" "}
+                      {busTripsTotal} paid trips (all time)
                     </p>
                   </div>
                   <div className="rounded-xl bg-emerald-500/15 p-2.5 text-emerald-400">
@@ -244,21 +252,47 @@ export default function DashboardPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                      Fleet & compliance
+                      Active buses
                     </p>
-                    <p className="mt-2 text-lg font-semibold text-amber-200">
-                      Review schedules
+                    <p className="mt-2 text-2xl font-semibold tabular-nums text-white">
+                      {activeBuses}
                     </p>
                     <Link
                       href="/dashboard/fleet"
                       className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300"
                     >
-                      Fleet management
+                      Manage fleet
                       <ArrowDownRight className="h-3 w-3 rotate-[-90deg]" />
                     </Link>
                   </div>
-                  <div className="rounded-xl bg-red-500/15 p-2.5 text-red-400">
-                    <AlertTriangle className="h-5 w-5" />
+                  <div className="rounded-xl bg-sky-500/15 p-2.5 text-sky-400">
+                    <Bus className="h-5 w-5" />
+                  </div>
+                </div>
+              </OperatorGlassCard>
+
+              <OperatorGlassCard className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                      Net profit (estimate)
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold tabular-nums text-white">
+                      {netProfit}{" "}
+                      <span className="text-sm font-normal text-zinc-500">
+                        ETB
+                      </span>
+                    </p>
+                    <Link
+                      href="/dashboard/finance"
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300"
+                    >
+                      Finance breakdown
+                      <ArrowDownRight className="h-3 w-3 rotate-[-90deg]" />
+                    </Link>
+                  </div>
+                  <div className="rounded-xl bg-violet-500/15 p-2.5 text-violet-300">
+                    <Banknote className="h-5 w-5" />
                   </div>
                 </div>
               </OperatorGlassCard>

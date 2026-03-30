@@ -91,8 +91,10 @@ export type ChapaInitResponse = {
 
 export type CompanyDashboardStats = {
   bookingsToday: number;
+  tripsToday?: number;
   pendingBookings: number;
   paidBookingsLast30Days: number;
+  activeBuses?: number;
   revenueCompleted: {
     count: number;
     gross: string;
