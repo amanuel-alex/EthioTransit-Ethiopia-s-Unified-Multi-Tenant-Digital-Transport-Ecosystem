@@ -4,12 +4,26 @@ import {
   PaymentStatus,
   Prisma,
 } from "@prisma/client";
+import { getChapaEnv, getMpesaEnv } from "@ethiotransit/config";
 import { loadEnv } from "../../config/env.js";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../utils/errors.js";
 import { splitCommission } from "../../utils/commission.js";
 import { initiateMpesaStk } from "./services/mpesa.service.js";
 import { initiateChapaTransaction } from "./services/chapa.service.js";
+
+/** Explicit PAYMENTS_MOCK, or localhost dev when provider env is not set — avoids hard M-Pesa/Chapa setup for demos. */
+function useMpesaMock(): boolean {
+  const env = loadEnv();
+  if (env.PAYMENTS_MOCK) return true;
+  return env.NODE_ENV === "development" && !getMpesaEnv();
+}
+
+function useChapaMock(): boolean {
+  const env = loadEnv();
+  if (env.PAYMENTS_MOCK) return true;
+  return env.NODE_ENV === "development" && !getChapaEnv();
+}
 
 export async function assertBookingPayable(params: {
   tenantId: string | null;
@@ -119,7 +133,7 @@ export async function initiateMpesaPayment(params: {
     };
   }
 
-  if (loadEnv().PAYMENTS_MOCK) {
+  if (useMpesaMock()) {
     const mockRef = `mock-mpesa-${payment.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 18)}`;
     await prisma.payment.update({
       where: { id: payment.id },
@@ -129,7 +143,10 @@ export async function initiateMpesaPayment(params: {
       paymentId: payment.id,
       provider: PaymentProvider.MPESA,
       mpesaReceipt: "MOCK-STK",
-      rawPayload: { mock: true, note: "PAYMENTS_MOCK" } as object,
+      rawPayload: {
+        mock: true,
+        note: loadEnv().PAYMENTS_MOCK ? "PAYMENTS_MOCK" : "development_no_mpesa_env",
+      } as object,
     });
     return {
       paymentId: payment.id,
@@ -194,7 +211,7 @@ export async function initiateChapaPayment(params: {
     provider: PaymentProvider.CHAPA,
   });
 
-  if (loadEnv().PAYMENTS_MOCK) {
+  if (useChapaMock()) {
     const mockRef = `mock-chapa-${payment.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 18)}`;
     await prisma.payment.update({
       where: { id: payment.id },
@@ -203,7 +220,10 @@ export async function initiateChapaPayment(params: {
     await confirmPaymentByProvider({
       paymentId: payment.id,
       provider: PaymentProvider.CHAPA,
-      rawPayload: { mock: true, note: "PAYMENTS_MOCK" } as object,
+      rawPayload: {
+        mock: true,
+        note: loadEnv().PAYMENTS_MOCK ? "PAYMENTS_MOCK" : "development_no_chapa_env",
+      } as object,
     });
     return {
       paymentId: payment.id,
