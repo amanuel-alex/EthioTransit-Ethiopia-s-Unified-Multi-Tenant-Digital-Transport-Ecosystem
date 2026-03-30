@@ -86,6 +86,55 @@ export async function peakBookingHours() {
   `;
 }
 
+/** Completed payment gross (ETB) per calendar day in UTC, last `dayCount` days including today. */
+export async function completedPaymentGrossByDayUtc(dayCount = 7) {
+  const n = Math.min(90, Math.max(1, Math.floor(dayCount)));
+  const now = new Date();
+  const start = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() - (n - 1),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+
+  const rows = await prisma.$queryRaw<{ day: Date; gross: Prisma.Decimal }[]>`
+    SELECT (p."createdAt" AT TIME ZONE 'UTC')::date AS day,
+           COALESCE(SUM(p.amount), 0)::decimal AS gross
+    FROM "Payment" p
+    WHERE p.status::text = ${PaymentStatus.COMPLETED}
+      AND p."createdAt" >= ${start}
+    GROUP BY 1
+    ORDER BY 1 ASC
+  `;
+
+  const byIso = new Map<string, number>();
+  for (const r of rows) {
+    const d = r.day instanceof Date ? r.day : new Date(r.day as string);
+    const iso = d.toISOString().slice(0, 10);
+    byIso.set(iso, Number(r.gross));
+  }
+
+  const series: { day: string; label: string; gross: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const d = new Date(start);
+    d.setUTCDate(start.getUTCDate() + i);
+    const day = d.toISOString().slice(0, 10);
+    const label = d.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+    series.push({ day, label, gross: byIso.get(day) ?? 0 });
+  }
+  return series;
+}
+
 export async function busPerformanceRanking(limit = 20) {
   const take = Math.min(100, Math.max(1, Math.floor(limit)));
   return prisma.$queryRaw<

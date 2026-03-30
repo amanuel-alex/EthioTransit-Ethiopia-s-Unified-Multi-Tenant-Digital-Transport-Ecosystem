@@ -20,6 +20,7 @@ import { bookingsRouter } from "./modules/bookings/bookings.router.js";
 import { paymentsRouter } from "./modules/payments/payments.router.js";
 import { companyRouter } from "./modules/company/company.router.js";
 import { adminRouter } from "./modules/admin/admin.router.js";
+import { publicOperatorRouter } from "./modules/operator-application/public.router.js";
 
 const API_PREFIX = "/api/v1";
 
@@ -78,6 +79,8 @@ export function createApp() {
 
   app.use(express.json({ limit: "1mb" }));
   app.use(API_PREFIX, apiRateLimiter);
+
+  app.use(`${API_PREFIX}/public`, publicOperatorRouter);
 
   app.use(API_PREFIX, healthRouter);
   app.use(`${API_PREFIX}/auth`, authRateLimiter, authRouter);

@@ -20,6 +20,12 @@ enum CompanyStatus {
   SUSPENDED
 }
 
+enum OperatorApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum BookingStatus {
   PENDING
   PAID
@@ -88,6 +94,8 @@ model Company {
   bookings  Booking[]
   payments  Payment[]
   drivers   Driver[]
+
+  operatorOnboardingApplication OperatorApplication?
 }
 
 model User {
@@ -103,6 +111,30 @@ model User {
   bookings      Booking[]
   payments      Payment[]
   seatLocks     SeatLock[]
+
+  reviewedOperatorApplications OperatorApplication[] @relation("OperatorApplicationReviewer")
+}
+
+/// Self-serve operator onboarding; admin approves → Company + COMPANY user.
+model OperatorApplication {
+  id             String                    @id @default(cuid())
+  legalName      String
+  slug           String
+  applicantPhone String
+  applicantEmail String?
+  notes          String?
+  status         OperatorApplicationStatus @default(PENDING)
+  rejectReason   String?
+  companyId      String?                   @unique
+  company        Company?                  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  reviewedAt     DateTime?
+  reviewerId     String?
+  reviewer       User?                     @relation("OperatorApplicationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([slug])
 }
 
 model RefreshToken {

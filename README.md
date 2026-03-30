@@ -126,6 +126,11 @@ Register **M-Pesa** Daraja callback URL to `.../api/v1/payments/webhook` (same U
 | GET | `/api/v1/company/revenue` |
 | GET | `/api/v1/admin/companies` |
 | GET | `/api/v1/admin/analytics` |
+| POST | `/api/v1/public/operator-applications` (no auth; rate-limited) |
+| GET | `/api/v1/admin/operator-applications` |
+| POST | `/api/v1/admin/operator-applications/:id/review` |
+
+**Onboarding bus companies (multi-tenant):** each operator submits **`POST /api/v1/public/operator-applications`** (see web **`/partners/apply`**). An **ADMIN** reviews under **`/admin/operator-applications`** and calls **`POST /api/v1/admin/operator-applications/:id/review`** with `{ "action": "approve" }` or `{ "action": "reject", "reason": "…" }`. **Approve** creates an **ACTIVE** `Company`, creates or upgrades the applicant’s `User` to **COMPANY** with that `companyId`, and links the application. The operator then signs in at **`/auth`** with the same phone. Manual company seeding remains possible for demos. **Suspend** operators via `PATCH /api/v1/admin/companies/:id`.
 
 Without M-Pesa/Chapa keys, initiate endpoints return `503` with `mpesa_not_configured` / `chapa_not_configured`.
 

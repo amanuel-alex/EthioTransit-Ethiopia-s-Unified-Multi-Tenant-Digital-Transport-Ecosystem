@@ -146,3 +146,25 @@ export type AdminCompanyRow = {
   createdAt: string;
   _count?: { buses: number };
 };
+
+export type OperatorApplicationRow = {
+  id: string;
+  legalName: string;
+  slug: string;
+  applicantPhone: string;
+  applicantEmail: string | null;
+  notes: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  rejectReason: string | null;
+  companyId: string | null;
+  reviewedAt: string | null;
+  reviewerId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  company: {
+    id: string;
+    name: string;
+    slug: string;
+    status: string;
+  } | null;
+};

@@ -11,10 +11,17 @@ import type {
   CompanyDashboardStats,
   CreateBookingResponse,
   MpesaInitResponse,
+  OperatorApplicationRow,
   PopularRouteRow,
   RouteSearchRow,
   ScheduleDetail,
 } from "./types";
+
+const publicAuth = {
+  accessToken: null,
+  companyId: null,
+  user: null,
+} as const;
 
 export function useApiAuth(): ApiRequestAuth {
   const { accessToken, user } = useAuth();
@@ -284,6 +291,50 @@ export function useApi() {
           method: "GET",
           auth,
         }),
+
+      submitPublicOperatorApplication: (body: {
+        legalName: string;
+        slug: string;
+        applicantPhone: string;
+        applicantEmail?: string | null;
+        notes?: string | null;
+      }) =>
+        apiRequest<{ id: string; status: string; message: string }>(
+          "/api/v1/public/operator-applications",
+          { method: "POST", json: body, auth: publicAuth },
+        ),
+
+      adminOperatorApplications: (params?: {
+        page?: number;
+        limit?: number;
+        status?: string;
+      }) => {
+        const q = new URLSearchParams();
+        if (params?.page != null) q.set("page", String(params.page));
+        if (params?.limit != null) q.set("limit", String(params.limit));
+        if (params?.status) q.set("status", params.status);
+        return apiRequest<{
+          data: OperatorApplicationRow[];
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+        }>(`/api/v1/admin/operator-applications?${q.toString()}`, {
+          method: "GET",
+          auth,
+        });
+      },
+
+      adminReviewOperatorApplication: (
+        id: string,
+        body:
+          | { action: "approve" }
+          | { action: "reject"; reason?: string | null },
+      ) =>
+        apiRequest<OperatorApplicationRow>(
+          `/api/v1/admin/operator-applications/${encodeURIComponent(id)}/review`,
+          { method: "POST", json: body, auth },
+        ),
     }),
     [auth],
   );

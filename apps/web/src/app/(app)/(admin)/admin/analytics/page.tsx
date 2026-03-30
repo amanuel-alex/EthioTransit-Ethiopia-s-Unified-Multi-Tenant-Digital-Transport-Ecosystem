@@ -21,6 +21,14 @@ import { useApi } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 
+function fmtEtb(n: number | string) {
+  const v = typeof n === "string" ? parseFloat(n) : n;
+  if (Number.isNaN(v)) return "—";
+  return new Intl.NumberFormat("en-ET", {
+    maximumFractionDigits: 0,
+  }).format(v);
+}
+
 export default function AdminAnalyticsPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
@@ -57,26 +65,21 @@ export default function AdminAnalyticsPage() {
     void load();
   }, [load]);
 
-  const barData = useMemo(() => {
-    const peak = analytics?.peakBookingTimes as
-      | { hour: number; bookings: unknown }[]
+  const revenueBarData = useMemo(() => {
+    const rows = analytics?.paymentVolumeByDay as
+      | { label: string; gross: unknown }[]
       | undefined;
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const byHour = new Map<number, number>();
-    if (peak?.length) {
-      for (const p of peak) {
-        byHour.set(p.hour, Number(p.bookings));
-      }
-    }
-    return days.map((label, i) => {
-      const h = (i * 3 + 9) % 24;
-      const fromPeak = byHour.get(h);
-      const volume =
-        fromPeak ??
-        (peak?.length ? Math.max(0, (i + 1) * 3) : [8, 10, 9, 12, 22, 14, 11][i] ?? 6);
-      return { day: label, volume };
-    });
-  }, [analytics?.peakBookingTimes]);
+    if (!rows?.length) return [];
+    return rows.map((r) => ({
+      label: r.label,
+      gross: Number(r.gross) || 0,
+    }));
+  }, [analytics?.paymentVolumeByDay]);
+
+  const maxRevenueBar = useMemo(
+    () => revenueBarData.reduce((m, d) => Math.max(m, d.gross), 0),
+    [revenueBarData],
+  );
 
   const revenueByCompany = useMemo(() => {
     const rows = analytics?.revenuePerCompany as
@@ -111,36 +114,55 @@ export default function AdminAnalyticsPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-5">
           <OperatorGlassCard className="p-4 lg:col-span-3">
-            <p className="text-sm font-semibold text-white">Booking activity</p>
-            <p className="text-xs text-zinc-500">Peak-hour derived index by weekday</p>
+            <p className="text-sm font-semibold text-white">Payment volume</p>
+            <p className="text-xs text-zinc-500">
+              Completed gross by day (UTC), last 7 days
+            </p>
             <div className="mt-4 h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                  <XAxis dataKey="day" tick={{ fill: "#a1a1aa", fontSize: 11 }} />
-                  <YAxis tick={{ fill: "#a1a1aa", fontSize: 11 }} width={28} />
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: 12,
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      background: "#141414",
-                      color: "#fafafa",
-                    }}
-                  />
-                  <Bar dataKey="volume" radius={[6, 6, 0, 0]}>
-                    {barData.map((entry, index) => (
-                      <Cell
-                        key={entry.day}
-                        fill={
-                          index === 4
-                            ? "hsl(152, 65%, 48%)"
-                            : "rgba(255,255,255,0.12)"
-                        }
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              {revenueBarData.length ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={revenueBarData} margin={{ bottom: 8, left: 0, right: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fill: "#a1a1aa", fontSize: 10 }}
+                      interval={0}
+                      angle={-18}
+                      textAnchor="end"
+                      height={48}
+                    />
+                    <YAxis tick={{ fill: "#a1a1aa", fontSize: 11 }} width={36} />
+                    <Tooltip
+                      formatter={(value: number | string) => [
+                        `${fmtEtb(Number(value))} ETB`,
+                        "Gross",
+                      ]}
+                      contentStyle={{
+                        borderRadius: 12,
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        background: "#141414",
+                        color: "#fafafa",
+                      }}
+                    />
+                    <Bar dataKey="gross" radius={[6, 6, 0, 0]} name="Gross ETB">
+                      {revenueBarData.map((entry) => (
+                        <Cell
+                          key={entry.label}
+                          fill={
+                            entry.gross === maxRevenueBar && maxRevenueBar > 0
+                              ? "hsl(152, 65%, 48%)"
+                              : "rgba(255,255,255,0.12)"
+                          }
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="pt-8 text-center text-sm text-zinc-500">
+                  No daily payment data yet.
+                </p>
+              )}
             </div>
           </OperatorGlassCard>
           <OperatorGlassCard className="p-4 lg:col-span-2">

@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "turbo dev",
+    "dev:web": "pnpm --filter @ethiotransit/web dev",
+    "dev:api": "pnpm --filter @ethiotransit/api dev",
     "build": "turbo build",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""

@@ -68,26 +68,21 @@ export default function AdminPage() {
     void load();
   }, [load]);
 
-  const barData = useMemo(() => {
-    const peak = analytics?.peakBookingTimes as
-      | { hour: number; bookings: unknown }[]
+  const revenueBarData = useMemo(() => {
+    const rows = analytics?.paymentVolumeByDay as
+      | { label: string; gross: unknown }[]
       | undefined;
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const byHour = new Map<number, number>();
-    if (peak?.length) {
-      for (const p of peak) {
-        byHour.set(p.hour, Number(p.bookings));
-      }
-    }
-    return days.map((label, i) => {
-      const h = (i * 3 + 9) % 24;
-      const fromPeak = byHour.get(h);
-      const volume =
-        fromPeak ??
-        (peak?.length ? Math.max(0, (i + 1) * 3) : [8, 10, 9, 12, 22, 14, 11][i] ?? 6);
-      return { day: label, volume };
-    });
-  }, [analytics?.peakBookingTimes]);
+    if (!rows?.length) return [];
+    return rows.map((r) => ({
+      label: r.label,
+      gross: Number(r.gross) || 0,
+    }));
+  }, [analytics?.paymentVolumeByDay]);
+
+  const maxRevenueBar = useMemo(
+    () => revenueBarData.reduce((m, d) => Math.max(m, d.gross), 0),
+    [revenueBarData],
+  );
 
   const revenueByCompany = useMemo(() => {
     const rows = analytics?.revenuePerCompany as
@@ -232,16 +227,30 @@ export default function AdminPage() {
                   Revenue momentum
                 </p>
                 <p className="text-xs text-zinc-500">
-                  Weekly view derived from peak booking signals
+                  Completed payment gross by day (UTC), last 7 days
                 </p>
                 <div className="mt-4 h-56 w-full">
-                  {barData.length ? (
+                  {revenueBarData.length ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={barData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                      <BarChart
+                        data={revenueBarData}
+                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                      >
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                        <XAxis dataKey="day" tick={{ fill: "#a1a1aa", fontSize: 11 }} />
-                        <YAxis tick={{ fill: "#a1a1aa", fontSize: 11 }} width={28} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fill: "#a1a1aa", fontSize: 10 }}
+                          interval={0}
+                          angle={-18}
+                          textAnchor="end"
+                          height={48}
+                        />
+                        <YAxis tick={{ fill: "#a1a1aa", fontSize: 11 }} width={36} />
                         <Tooltip
+                          formatter={(value: number | string) => [
+                            `${fmtEtb(Number(value))} ETB`,
+                            "Gross",
+                          ]}
                           contentStyle={{
                             borderRadius: 12,
                             border: "1px solid rgba(255,255,255,0.1)",
@@ -249,16 +258,12 @@ export default function AdminPage() {
                             color: "#fafafa",
                           }}
                         />
-                        <Bar
-                          dataKey="volume"
-                          radius={[6, 6, 0, 0]}
-                          name="Activity index"
-                        >
-                          {barData.map((entry, index) => (
+                        <Bar dataKey="gross" radius={[6, 6, 0, 0]} name="Gross ETB">
+                          {revenueBarData.map((entry) => (
                             <Cell
-                              key={entry.day}
+                              key={entry.label}
                               fill={
-                                index === 4
+                                entry.gross === maxRevenueBar && maxRevenueBar > 0
                                   ? "hsl(152, 65%, 48%)"
                                   : "rgba(255,255,255,0.12)"
                               }
@@ -267,7 +272,11 @@ export default function AdminPage() {
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
-                  ) : null}
+                  ) : (
+                    <p className="pt-8 text-center text-sm text-zinc-500">
+                      No daily payment data yet.
+                    </p>
+                  )}
                 </div>
               </OperatorGlassCard>
 
@@ -312,6 +321,11 @@ export default function AdminPage() {
 
             <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[
+                {
+                  href: "/admin/operator-applications",
+                  title: "Applications",
+                  body: "Review self-serve operator signups",
+                },
                 { href: "/admin/companies", title: "Companies", body: "Activate or suspend operators" },
                 { href: "/admin/users", title: "Users", body: "Passengers, company accounts, admins" },
                 { href: "/admin/bookings", title: "Bookings", body: "Cross-tenant reservations" },

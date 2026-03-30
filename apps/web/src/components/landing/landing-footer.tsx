@@ -41,7 +41,9 @@ export function LandingFooter() {
               <span className="cursor-default hover:text-zinc-300">Corporate Travel</span>
             </li>
             <li>
-              <span className="cursor-default hover:text-zinc-300">Partnership</span>
+              <Link href="/partners/apply" className="hover:text-zinc-300">
+                For operators
+              </Link>
             </li>
           </ul>
         </div>

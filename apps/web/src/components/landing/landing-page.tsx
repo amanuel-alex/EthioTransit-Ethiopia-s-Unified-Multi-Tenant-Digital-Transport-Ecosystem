@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
+  Building2,
   Bus,
   CalendarDays,
   Crosshair,
@@ -41,6 +42,35 @@ const partners: { name: string; icon: typeof Bus }[] = [
   { name: "Selam Bus", icon: Bus },
   { name: "Lul Bus", icon: Navigation },
   { name: "Golden Bus", icon: Bus },
+  { name: "Zemen Bus", icon: Bus },
+  { name: "Abay Lines", icon: Bus },
+];
+
+const operatorOnboardingSteps: {
+  step: string;
+  title: string;
+  body: string;
+}[] = [
+  {
+    step: "01",
+    title: "Apply online",
+    body: "Submit the partner form with your legal name, a URL slug for your brand (e.g. sky-bus or your-company), and the phone number you will use to sign in.",
+  },
+  {
+    step: "02",
+    title: "We review & approve",
+    body: "Platform admins verify your application. Approval instantly creates your company tenant and links your phone as the operator account.",
+  },
+  {
+    step: "03",
+    title: "You configure fleet & schedules",
+    body: "In the operator dashboard you add buses, drivers, routes, and trip schedules. Passengers discover your trips in search alongside other partners.",
+  },
+  {
+    step: "04",
+    title: "Go live on payments",
+    body: "Bookings settle through platform rail (M-Pesa / Chapa). You see revenue, commissions, and can suspend routes when needed—admins oversee the network.",
+  },
 ];
 
 export function LandingPage() {
@@ -270,11 +300,15 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Official partners */}
+      {/* Operator ecosystem (illustrative names) */}
       <MotionSection className="border-y border-white/5 bg-[#080808] py-12">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <p className="text-center text-[10px] font-bold uppercase tracking-[0.35em] text-zinc-600">
-            Official partners
+            Built for many operators
+          </p>
+          <p className="mx-auto mt-2 max-w-xl text-center text-xs text-zinc-500">
+            One platform, separate tenant per company—national fleets, regional lines, and new brands
+            welcome. Below are example names; your logo and routes appear the same way.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-10 sm:gap-16">
             {partners.map(({ name, icon: Icon }) => (
@@ -408,6 +442,80 @@ export function LandingPage() {
               </div>
             ))}
           </div>
+        </div>
+      </MotionSection>
+
+      {/* Operators / B2B partnership */}
+      <MotionSection
+        id="operators"
+        className="scroll-mt-24 border-t border-white/5 bg-[#070707] py-20 sm:py-28"
+      >
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-2xl">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-medium uppercase tracking-wider text-[hsl(152,65%,52%)]">
+                <Building2 className="h-3.5 w-3.5" aria-hidden />
+                For operators
+              </span>
+              <h2 className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                When your org joins EthioTransit
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-400 sm:text-base">
+                <strong className="font-medium text-zinc-300">
+                  Every bus company gets its own tenant
+                </strong>
+                —national brands, regional lines, and new operators alike. Partner through onboarding, not
+                a passenger signup form. You keep your brand and fleet; we provide search, seats,
+                ticketing, and payouts on one shared rail.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                asChild
+                className="rounded-full bg-[hsl(152,65%,46%)] text-white hover:bg-[hsl(152,65%,40%)]"
+              >
+                <Link href="/partners/apply">Apply as operator</Link>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                className="rounded-full border-white/20 bg-transparent text-zinc-200 hover:bg-white/5"
+              >
+                <Link href="/auth">Operator sign in</Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {operatorOnboardingSteps.map((s) => (
+              <motion.div
+                key={s.step}
+                initial={reduce ? undefined : { opacity: 0, y: 14 }}
+                whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4 }}
+                className="rounded-2xl border border-white/10 bg-white/[0.02] p-6"
+              >
+                <p className="font-mono text-xs font-semibold tabular-nums text-[hsl(152,65%,48%)]">
+                  {s.step}
+                </p>
+                <h3 className="mt-3 text-base font-semibold text-white">{s.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-500">{s.body}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <p className="mt-8 text-center text-xs text-zinc-500 sm:text-left">
+            In{" "}
+            <Link
+              href="/#contact"
+              className="font-medium text-[hsl(152,65%,52%)] underline decoration-[hsl(152,65%,48%)]/40 underline-offset-2 hover:decoration-[hsl(152,65%,48%)]"
+            >
+              Contact
+            </Link>
+            , choose <strong className="text-zinc-400">Operators &amp; partnerships</strong> so your
+            message routes to the right inbox.
+          </p>
         </div>
       </MotionSection>
 

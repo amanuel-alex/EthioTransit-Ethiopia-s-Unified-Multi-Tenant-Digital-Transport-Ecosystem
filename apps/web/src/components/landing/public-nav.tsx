@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/", label: "Home" },
+  { href: "/partners/apply", label: "Partner" },
   { href: "/auth?next=/bookings", label: "Bookings" },
   { href: "#features", label: "Features" },
   { href: "#contact", label: "Contact us" },
@@ -28,7 +29,10 @@ export function PublicNav() {
         <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-0 md:flex">
           {nav.map(({ href, label }) => {
             const isHome = href === "/";
-            const active = isHome && pathname === "/";
+            const isPartner = href === "/partners/apply";
+            const active =
+              (isHome && pathname === "/") ||
+              (isPartner && pathname === "/partners/apply");
             return (
               <Link
                 key={href}
@@ -72,7 +76,9 @@ export function PublicNav() {
 
       <nav className="flex justify-center gap-1 border-t border-white/[0.06] px-2 py-2 md:hidden">
         {nav.map(({ href, label }) => {
-          const active = href === "/" && pathname === "/";
+          const active =
+            (href === "/" && pathname === "/") ||
+            (href === "/partners/apply" && pathname === "/partners/apply");
           return (
             <Link
               key={href}
