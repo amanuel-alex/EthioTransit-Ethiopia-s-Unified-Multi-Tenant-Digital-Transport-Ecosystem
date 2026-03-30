@@ -9,6 +9,8 @@ import * as routesService from "./routes.service.js";
 const querySchema = z.object({
   origin: z.string().min(1),
   destination: z.string().min(1),
+  /** Accepted for client parity; schedule filtering happens on `/schedules/available`. */
+  date: z.string().optional(),
 });
 
 export const routesModuleRouter = Router();

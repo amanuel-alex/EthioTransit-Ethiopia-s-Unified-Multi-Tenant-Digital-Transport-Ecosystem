@@ -92,3 +92,30 @@ export async function listAvailableByRoute(
   }
   return out;
 }
+
+/** Next departures across all active operators (passenger home / discovery). */
+export async function listUpcomingForPassenger(limit: number) {
+  const cap = Math.min(Math.max(limit, 1), 50);
+  const now = new Date();
+  const schedules = await prisma.schedule.findMany({
+    where: {
+      departsAt: { gte: now },
+      company: { status: CompanyStatus.ACTIVE },
+    },
+    include: { company: { select: { name: true } } },
+    orderBy: { departsAt: "asc" },
+    take: cap,
+  });
+
+  const out: {
+    detail: Awaited<ReturnType<typeof getAvailableForSchedule>>;
+    companyName: string;
+  }[] = [];
+
+  for (const s of schedules) {
+    const detail = await getAvailableForSchedule(s.companyId, s.id);
+    out.push({ detail, companyName: s.company.name });
+  }
+
+  return out;
+}

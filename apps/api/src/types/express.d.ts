@@ -10,8 +10,9 @@ declare global {
         companyId: string | null;
       };
       /**
-       * Effective tenant for row-level isolation. ADMIN may leave null on admin-only routes.
-       * PASSENGER must send x-company-id; COMPANY uses JWT companyId.
+       * Effective tenant for row-level isolation. COMPANY uses JWT companyId.
+       * PASSENGER may omit x-company-id for cross-operator route search; other routes
+       * resolve company from schedule/route/booking when the header is absent.
        */
       tenantId?: string | null;
       /** Set by validateQuery middleware. */

@@ -45,6 +45,12 @@ export function useApi() {
         );
       },
 
+      upcomingTrips: (limit = 8) =>
+        apiRequest<{ data: { detail: ScheduleDetail; companyName: string }[] }>(
+          `/api/v1/schedules/upcoming?limit=${limit}`,
+          { method: "GET", auth },
+        ),
+
       schedulesByRoute: (routeId: string, from: string, to: string) =>
         apiRequest<{ data: ScheduleDetail[] }>(
           `/api/v1/schedules/available?routeId=${encodeURIComponent(routeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,

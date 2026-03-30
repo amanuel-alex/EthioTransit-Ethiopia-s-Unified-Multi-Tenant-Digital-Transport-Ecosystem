@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Bus, Search } from "lucide-react";
+import { ArrowRight, Bus, MapPin, Search } from "lucide-react";
+import { BusTripCard, type TripSearchHit } from "@/components/booking/bus-trip-card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApi } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 
@@ -29,14 +33,56 @@ function HubCard({
 }
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const router = useRouter();
+  const api = useApi();
   const reduce = useReducedMotion();
+
+  const [upcoming, setUpcoming] = useState<TripSearchHit[] | null>(null);
+  const [upcomingLoading, setUpcomingLoading] = useState(true);
+  const [upcomingError, setUpcomingError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.role === "COMPANY") router.replace("/dashboard");
     if (user?.role === "ADMIN") router.replace("/admin");
   }, [user?.role, router]);
+
+  useEffect(() => {
+    if (user?.role !== "PASSENGER") return;
+    let cancelled = false;
+    void (async () => {
+      setUpcomingLoading(true);
+      setUpcomingError(null);
+      try {
+        const { data } = await api.upcomingTrips(8);
+        if (!cancelled) setUpcoming(data);
+      } catch (e) {
+        const err = e as Error & { status?: number };
+        if (err.status === 401) {
+          logout();
+          toast.error("Session expired");
+          router.push("/auth");
+          return;
+        }
+        if (!cancelled) {
+          setUpcomingError(err.message ?? "Could not load trips");
+          setUpcoming([]);
+        }
+      } finally {
+        if (!cancelled) setUpcomingLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role, api, logout, router]);
+
+  const pickSchedule = useCallback(
+    (scheduleId: string) => {
+      router.push(`/seat?scheduleId=${encodeURIComponent(scheduleId)}`);
+    },
+    [router],
+  );
 
   if (user?.role !== "PASSENGER") {
     return null;
@@ -119,6 +165,120 @@ export default function HomePage() {
           </Button>
         </HubCard>
       </motion.div>
+
+      <motion.section
+        initial={reduce ? false : { opacity: 0, y: 12 }}
+        animate={reduce ? false : { opacity: 1, y: 0 }}
+        transition={{
+          type: "spring",
+          stiffness: 380,
+          damping: 32,
+          delay: 0.08,
+        }}
+        className="mt-12 sm:mt-14"
+        aria-label="Upcoming departures"
+      >
+        <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">
+              Available soon
+            </h2>
+            <p className="mt-1 max-w-xl text-sm text-zinc-400">
+              Next departures from all operators. Search to filter by route and
+              date.
+            </p>
+          </div>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="shrink-0 rounded-xl border-white/15 bg-white/5 text-zinc-100 hover:bg-white/10 hover:text-white"
+          >
+            <Link href="/search">Search all routes</Link>
+          </Button>
+        </div>
+
+        {upcomingError ? (
+          <div
+            className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+            role="alert"
+          >
+            {upcomingError}
+          </div>
+        ) : null}
+
+        {upcomingLoading ? (
+          <div className="space-y-4" aria-busy="true">
+            {[0, 1, 2].map((i) => (
+              <Skeleton
+                key={i}
+                className="h-36 w-full rounded-xl bg-white/10"
+              />
+            ))}
+          </div>
+        ) : null}
+
+        {!upcomingLoading &&
+        upcoming &&
+        upcoming.length === 0 &&
+        !upcomingError ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-zinc-900/40 px-8 py-14 text-center ring-1 ring-white/5">
+            <MapPin
+              className="mb-3 h-10 w-10 text-zinc-500"
+              aria-hidden
+            />
+            <p className="text-lg font-semibold text-white">
+              No upcoming buses yet
+            </p>
+            <p className="mt-2 max-w-md text-sm text-zinc-400">
+              Operators publish schedules regularly. Use search to find a
+              specific trip, or check back later.
+            </p>
+            <Button
+              asChild
+              className="mt-6 rounded-xl bg-[hsl(152,65%,48%)] px-6 font-semibold text-zinc-950 hover:bg-[hsl(152,65%,44%)]"
+            >
+              <Link href="/search">Open search</Link>
+            </Button>
+          </div>
+        ) : null}
+
+        {!upcomingLoading && upcoming && upcoming.length > 0 ? (
+          <motion.div
+            className="space-y-4"
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: {},
+              show: {
+                transition: {
+                  staggerChildren: reduce ? 0 : 0.05,
+                },
+              },
+            }}
+          >
+            {upcoming.map((trip) => (
+              <motion.div
+                key={trip.detail.schedule.id}
+                variants={{
+                  hidden: { opacity: 0, y: 12 },
+                  show: {
+                    opacity: 1,
+                    y: 0,
+                    transition: { type: "spring", stiffness: 380, damping: 30 },
+                  },
+                }}
+              >
+                <BusTripCard
+                  trip={trip}
+                  onSelectSeat={pickSchedule}
+                  showRoute
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : null}
+      </motion.section>
     </div>
   );
 }

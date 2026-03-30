@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { UserRole } from "@prisma/client";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth.js";
 import { HttpError } from "../../utils/errors.js";
@@ -6,6 +7,42 @@ import { resolveCompanyScope } from "../../utils/tenant-resolve.js";
 import * as schedulesService from "./schedules.service.js";
 
 export const schedulesRouter = Router();
+
+const upcomingQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
+schedulesRouter.get(
+  "/upcoming",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      if (req.user?.role !== UserRole.PASSENGER) {
+        next(
+          new HttpError(
+            403,
+            "forbidden",
+            "This listing is only available to passengers",
+          ),
+        );
+        return;
+      }
+      const q = upcomingQuery.parse(req.query);
+      const data = await schedulesService.listUpcomingForPassenger(
+        q.limit ?? 8,
+      );
+      res.json({ data });
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        next(
+          new HttpError(400, "validation_error", "Invalid query", e.flatten()),
+        );
+        return;
+      }
+      next(e);
+    }
+  },
+);
 
 const availableQuery = z
   .object({
