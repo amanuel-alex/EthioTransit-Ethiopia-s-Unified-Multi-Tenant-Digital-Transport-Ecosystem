@@ -9,6 +9,7 @@ import '../../data/api_exception.dart';
 import '../../data/ethiotransit_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/home_coach_hero.dart';
 import '../../widgets/trip_card.dart';
 import '../search/search_results_screen.dart';
 import '../seat/seat_selection_screen.dart';
@@ -235,6 +236,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               height: 1.35,
                             ),
                       ),
+                      const SizedBox(height: 18),
+                      HomeCoachHero(dark: dark),
                       const SizedBox(height: 22),
                       DecoratedBox(
                         decoration: BoxDecoration(

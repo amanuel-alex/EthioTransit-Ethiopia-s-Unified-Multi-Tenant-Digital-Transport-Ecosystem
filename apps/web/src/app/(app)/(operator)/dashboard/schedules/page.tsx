@@ -33,13 +33,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth/auth-context";
+import { routeLineLabel, type RouteWithStations } from "@/lib/route-label";
 import {
   createScheduleAction,
   deleteScheduleAction,
   updateScheduleAction,
 } from "@/lib/server/actions/operator";
 
-type RouteMini = { id: string; origin: string; destination: string };
+type RouteMini = RouteWithStations & { id: string };
 type BusMini = { id: string; plateNumber: string };
 type ScheduleRow = {
   id: string;
@@ -234,8 +235,8 @@ export default function OperatorSchedulesPage() {
             <TableBody>
               {(rows ?? []).map((row) => (
                 <TableRow key={row.id} className="border-white/10">
-                  <TableCell className="text-white">
-                    {row.route.origin} → {row.route.destination}
+                  <TableCell className="max-w-[240px] text-white">
+                    {routeLineLabel(row.route)}
                   </TableCell>
                   <TableCell className="text-zinc-300">
                     {row.bus.plateNumber}
@@ -297,7 +298,7 @@ export default function OperatorSchedulesPage() {
                 <SelectContent>
                   {routes.map((route) => (
                     <SelectItem key={route.id} value={route.id}>
-                      {route.origin} → {route.destination}
+                      {routeLineLabel(route)}
                     </SelectItem>
                   ))}
                 </SelectContent>
