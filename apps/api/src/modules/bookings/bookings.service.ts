@@ -244,3 +244,73 @@ export async function listForCompany(tenantId: string) {
     take: 200,
   });
 }
+
+export async function listForCompanyFiltered(
+  tenantId: string,
+  filters: {
+    from?: Date;
+    to?: Date;
+    routeId?: string;
+    status?: BookingStatus;
+  },
+) {
+  const where: Prisma.BookingWhereInput = { companyId: tenantId };
+  if (filters.status) where.status = filters.status;
+  if (filters.from || filters.to) {
+    where.createdAt = {};
+    if (filters.from) where.createdAt.gte = filters.from;
+    if (filters.to) where.createdAt.lte = filters.to;
+  }
+  if (filters.routeId) {
+    where.schedule = { routeId: filters.routeId };
+  }
+
+  return prisma.booking.findMany({
+    where,
+    include: {
+      user: { select: { id: true, phone: true } },
+      schedule: { include: { route: true, bus: true } },
+      seats: true,
+      payments: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+  });
+}
+
+export async function listAllBookingsAdmin(params: {
+  from?: Date;
+  to?: Date;
+  companyId?: string;
+  status?: BookingStatusT;
+  skip: number;
+  take: number;
+}) {
+  const where: Prisma.BookingWhereInput = {};
+  if (params.companyId) where.companyId = params.companyId;
+  if (params.status) where.status = params.status;
+  if (params.from || params.to) {
+    where.createdAt = {};
+    if (params.from) where.createdAt.gte = params.from;
+    if (params.to) where.createdAt.lte = params.to;
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.booking.findMany({
+      where,
+      include: {
+        user: { select: { id: true, phone: true } },
+        company: { select: { id: true, name: true, slug: true } },
+        schedule: { include: { route: true, bus: true } },
+        seats: true,
+        payments: true,
+      },
+      orderBy: { createdAt: "desc" },
+      skip: params.skip,
+      take: params.take,
+    }),
+    prisma.booking.count({ where }),
+  ]);
+
+  return { data, total };
+}

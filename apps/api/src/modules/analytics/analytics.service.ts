@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import {
   BookingStatus,
+  BusStatus,
   PaymentStatus,
 } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
@@ -141,11 +142,50 @@ export async function companyRevenueScoped(companyId: string) {
   });
 }
 
+export async function companyFinanceSummary(companyId: string) {
+  const [revenue, km, salaryAgg] = await Promise.all([
+    companyRevenueScoped(companyId),
+    companyKmMetrics(companyId),
+    prisma.driver.aggregate({
+      where: { companyId },
+      _sum: { salary: true },
+    }),
+  ]);
+
+  const gross = revenue._sum.amount?.toString() ?? "0";
+  const platformFees = revenue._sum.platformFee?.toString() ?? "0";
+  const companyEarnings = revenue._sum.companyEarning?.toString() ?? "0";
+  const totalSalaries = salaryAgg._sum.salary?.toString() ?? "0";
+  const estimatedFuelCost = km.totalEstimatedCost.toFixed(2);
+  const netEstimate =
+    Number(companyEarnings) -
+    km.totalEstimatedCost -
+    Number(totalSalaries);
+
+  return {
+    payments: {
+      gross,
+      platformFees,
+      companyEarnings,
+      completedCount: revenue._count,
+    },
+    operational: {
+      estimatedFuelAndPerKmCost: estimatedFuelCost,
+      totalSalaries,
+      totalDistanceKm: km.totalDistanceKm,
+      revenuePerKm: km.revenuePerKm,
+      costPerKm: km.costPerKm,
+    },
+    netProfitEstimate: netEstimate.toFixed(2),
+  };
+}
+
 export async function companyDashboardStats(companyId: string) {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  const [bookingsToday, pendingBookings, paidMonth] = await Promise.all([
+  const [bookingsToday, pendingBookings, paidMonth, activeBuses] =
+    await Promise.all([
     prisma.booking.count({
       where: { companyId, createdAt: { gte: startOfDay } },
     }),
@@ -159,14 +199,19 @@ export async function companyDashboardStats(companyId: string) {
         createdAt: { gte: new Date(Date.now() - 30 * 864e5) },
       },
     }),
+    prisma.bus.count({
+      where: { companyId, status: BusStatus.ACTIVE },
+    }),
   ]);
 
   const revenue = await companyRevenueScoped(companyId);
 
   return {
     bookingsToday,
+    tripsToday: bookingsToday,
     pendingBookings,
     paidBookingsLast30Days: paidMonth,
+    activeBuses,
     revenueCompleted: {
       count: revenue._count,
       gross: revenue._sum.amount?.toString() ?? "0",

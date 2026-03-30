@@ -37,6 +37,12 @@ enum PaymentStatus {
   FAILED
 }
 
+enum BusStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
 model Company {
   id        String        @id @default(cuid())
   name      String
@@ -52,6 +58,7 @@ model Company {
   seatLocks SeatLock[]
   bookings  Booking[]
   payments  Payment[]
+  drivers   Driver[]
 }
 
 model User {
@@ -82,17 +89,19 @@ model RefreshToken {
 }
 
 model Bus {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   companyId    String
-  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   plateNumber  String
   seatCapacity Int
+  status       BusStatus @default(ACTIVE)
   /// Operational cost assumption for analytics (per km).
-  costPerKm    Decimal  @db.Decimal(12, 4)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  costPerKm    Decimal   @db.Decimal(12, 4)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  schedules Schedule[]
+  schedules      Schedule[]
+  assignedDriver Driver?
 
   @@unique([companyId, plateNumber])
 }
@@ -104,12 +113,28 @@ model Route {
   origin      String
   destination String
   distanceKm  Decimal  @db.Decimal(12, 2)
+  /// Suggested fare per km; schedules still store concrete basePrice.
+  pricePerKm  Decimal? @db.Decimal(12, 4)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   schedules Schedule[]
 
   @@index([companyId, origin, destination])
+}
+
+model Driver {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fullName      String
+  salary        Decimal  @db.Decimal(12, 2)
+  assignedBusId String?  @unique
+  assignedBus   Bus?     @relation(fields: [assignedBusId], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyId])
 }
 
 model Schedule {
