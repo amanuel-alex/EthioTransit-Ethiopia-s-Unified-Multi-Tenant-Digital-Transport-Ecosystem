@@ -105,7 +105,6 @@ export function PassengerSeatHeader() {
           className="flex min-w-0 flex-1 items-center justify-center gap-0 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           aria-label="Main"
         >
-          <SeatNavLink href="/search">Schedules</SeatNavLink>
           <SeatNavLink href="/bookings">Bookings</SeatNavLink>
           <SeatNavLink href="/home">Home</SeatNavLink>
         </nav>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Bus, LogOut, Menu, Search, Shield, Ticket } from "lucide-react";
+import { Bus, LogOut, Menu, Shield, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -258,12 +258,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {role === "PASSENGER" ? (
                   <>
                     <NavLink href="/home">Home</NavLink>
-                    <NavLink href="/search">
-                      <span className="inline-flex items-center gap-1">
-                        <Search className="h-3.5 w-3.5" aria-hidden />
-                        Search
-                      </span>
-                    </NavLink>
                     <NavLink href="/bookings">
                       <span className="inline-flex items-center gap-1">
                         <Ticket className="h-3.5 w-3.5" aria-hidden />

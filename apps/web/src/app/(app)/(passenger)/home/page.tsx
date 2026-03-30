@@ -2,34 +2,27 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Bus, MapPin, Search } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { BusTripCard, type TripSearchHit } from "@/components/booking/bus-trip-card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api/hooks";
+import type { BookingRow } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/auth-context";
-import { cn } from "@/lib/utils";
+import { saveCheckoutDraft } from "@/lib/booking/checkout-storage";
 
-function HubCard({
-  className,
-  children,
-}: {
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex flex-col justify-between rounded-3xl border border-white/10 bg-zinc-900/50 p-7 shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/5 backdrop-blur-sm sm:p-8",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
+function fmtMoney(v: unknown) {
+  if (v === null || v === undefined) return "—";
+  if (typeof v === "string") return v;
+  if (typeof v === "number") return String(v);
+  if (typeof v === "object" && v !== null && "toString" in v) {
+    return String((v as { toString: () => string }).toString());
+  }
+  return String(v);
 }
 
 export default function HomePage() {
@@ -41,6 +34,9 @@ export default function HomePage() {
   const [upcoming, setUpcoming] = useState<TripSearchHit[] | null>(null);
   const [upcomingLoading, setUpcomingLoading] = useState(true);
   const [upcomingError, setUpcomingError] = useState<string | null>(null);
+
+  const [bookings, setBookings] = useState<BookingRow[] | null>(null);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
 
   useEffect(() => {
     if (user?.role === "COMPANY") router.replace("/dashboard");
@@ -54,7 +50,7 @@ export default function HomePage() {
       setUpcomingLoading(true);
       setUpcomingError(null);
       try {
-        const { data } = await api.upcomingTrips(8);
+        const { data } = await api.upcomingTrips(9);
         if (!cancelled) setUpcoming(data);
       } catch (e) {
         const err = e as Error & { status?: number };
@@ -77,6 +73,46 @@ export default function HomePage() {
     };
   }, [user?.role, api, logout, router]);
 
+  useEffect(() => {
+    if (user?.role !== "PASSENGER") return;
+    let cancelled = false;
+    void (async () => {
+      setBookingsLoading(true);
+      try {
+        const { data } = await api.listUserBookings();
+        if (!cancelled) setBookings(data);
+      } catch (e) {
+        const err = e as Error & { status?: number };
+        if (err.status === 401) {
+          logout();
+          router.push("/auth");
+          return;
+        }
+        if (!cancelled) {
+          toast.error(err.message ?? "Could not load bookings");
+          setBookings([]);
+        }
+      } finally {
+        if (!cancelled) setBookingsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role, api, logout, router]);
+
+  const upcomingBookings = useMemo(() => {
+    const list = bookings ?? [];
+    const now = Date.now();
+    return list
+      .filter((b) => {
+        if (b.status === "CANCELLED") return false;
+        if (b.status === "PENDING") return true;
+        return new Date(b.schedule.departsAt).getTime() >= now;
+      })
+      .slice(0, 5);
+  }, [bookings]);
+
   const pickSchedule = useCallback(
     (scheduleId: string) => {
       router.push(`/seat?scheduleId=${encodeURIComponent(scheduleId)}`);
@@ -94,77 +130,141 @@ export default function HomePage() {
         initial={reduce ? false : { opacity: 0, y: 14 }}
         animate={reduce ? false : { opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 380, damping: 32 }}
-        className="mb-10 space-y-3 sm:mb-12"
+        className="mb-8 space-y-3 sm:mb-10"
       >
         <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-[2.65rem] md:leading-tight">
           Your journey starts{" "}
           <span className="text-[hsl(152,65%,52%)]">here</span>
         </h1>
         <p className="max-w-2xl text-sm leading-relaxed text-zinc-400 sm:text-base">
-          Search live schedules, pick seats, and pay with M-Pesa or Chapa.
+          Pick seats, pay with M-Pesa or Chapa, and manage trips below.{" "}
+          <Link
+            href="/search"
+            className="font-medium text-[hsl(152,65%,52%)] underline decoration-[hsl(152,65%,48%)]/50 underline-offset-2 hover:decoration-[hsl(152,65%,48%)]"
+          >
+            Find a bus by route
+          </Link>
+          .
         </p>
       </motion.div>
 
-      <motion.div
+      <motion.section
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={reduce ? false : { opacity: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 380, damping: 32, delay: 0.04 }}
-        className="grid gap-5 md:grid-cols-2 md:gap-6"
+        transition={{
+          type: "spring",
+          stiffness: 380,
+          damping: 32,
+          delay: 0.04,
+        }}
+        className="mb-10 sm:mb-12"
+        aria-label="My bookings"
       >
-        <HubCard>
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[hsl(152,65%,48%)]/35 bg-[hsl(152,65%,48%)]/10">
-              <Search
-                className="h-8 w-8 text-[hsl(152,65%,52%)]"
-                strokeWidth={1.75}
-                aria-hidden
-              />
-            </div>
-            <h2 className="text-xl font-semibold tracking-tight text-white">
-              Find a bus
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-              Compare operators on your corridor with real-time availability.
-            </p>
-          </div>
-          <Button
-            asChild
-            className="mt-8 h-12 gap-2 rounded-xl bg-[hsl(152,65%,48%)] px-6 text-base font-semibold text-zinc-950 shadow-[0_0_28px_hsla(152,65%,48%,0.35)] hover:bg-[hsl(152,65%,44%)]"
-            size="lg"
-          >
-            <Link href="/search">
-              Open search
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-          </Button>
-        </HubCard>
-
-        <HubCard>
-          <div>
-            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/25 bg-amber-400/10">
-              <Bus
-                className="h-8 w-8 text-amber-400"
-                strokeWidth={1.75}
-                aria-hidden
-              />
-            </div>
-            <h2 className="text-xl font-semibold tracking-tight text-white">
+            <h2 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">
               My bookings
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-              View upcoming trips, tickets, and cancellation options.
+            <p className="mt-1 text-sm text-zinc-400">
+              Upcoming and pending payment — full history on the bookings page.
             </p>
           </div>
           <Button
             asChild
             variant="outline"
-            className="mt-8 h-12 self-start rounded-xl border-white/15 bg-white/5 px-6 text-base font-semibold text-zinc-100 hover:bg-white/10 hover:text-white"
-            size="lg"
+            size="sm"
+            className="shrink-0 rounded-xl border-white/15 bg-white/5 text-zinc-100 hover:bg-white/10 hover:text-white"
           >
-            <Link href="/bookings">View bookings</Link>
+            <Link href="/bookings">View all</Link>
           </Button>
-        </HubCard>
-      </motion.div>
+        </div>
+
+        {bookingsLoading ? (
+          <div className="space-y-2" aria-busy="true">
+            <Skeleton className="h-[5.5rem] w-full rounded-xl bg-white/10" />
+            <Skeleton className="h-[5.5rem] w-full rounded-xl bg-white/10" />
+          </div>
+        ) : null}
+
+        {!bookingsLoading &&
+        upcomingBookings.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-white/15 bg-zinc-900/40 px-6 py-10 text-center ring-1 ring-white/5">
+            <p className="text-sm font-medium text-zinc-300">
+              No upcoming bookings
+            </p>
+            <p className="mt-2 text-sm text-zinc-500">
+              When you book a trip, it will show up here.
+            </p>
+          </div>
+        ) : null}
+
+        {!bookingsLoading && upcomingBookings.length > 0 ? (
+          <ul className="space-y-2">
+            {upcomingBookings.map((b) => (
+              <li key={b.id}>
+                <div className="rounded-xl border border-white/10 bg-zinc-900/50 p-4 ring-1 ring-white/5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-white">
+                        {b.schedule.route.origin} →{" "}
+                        {b.schedule.route.destination}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-400 sm:text-sm">
+                        {new Intl.DateTimeFormat("en-ET", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }).format(new Date(b.schedule.departsAt))}{" "}
+                        · {b.schedule.bus.plateNumber}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Seats:{" "}
+                        {b.seats.map((s) => s.seatNo).join(", ")}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                      <Badge
+                        variant={
+                          b.status === "PAID"
+                            ? "default"
+                            : b.status === "PENDING"
+                              ? "secondary"
+                              : "outline"
+                        }
+                        className="text-xs"
+                      >
+                        {b.status}
+                      </Badge>
+                      <p className="text-sm font-medium text-zinc-200">
+                        {fmtMoney(b.totalAmount)} {b.currency}
+                      </p>
+                      {b.status === "PENDING" ? (
+                        <Button
+                          size="sm"
+                          className="h-8 rounded-lg bg-[hsl(152,65%,48%)] px-3 text-xs font-semibold text-zinc-950 hover:bg-[hsl(152,65%,44%)]"
+                          onClick={() => {
+                            saveCheckoutDraft({
+                              bookingId: b.id,
+                              totalAmount: fmtMoney(b.totalAmount),
+                              currency: b.currency,
+                              scheduleId: b.schedule.id,
+                              seatNumbers: b.seats.map((s) => s.seatNo),
+                              routeLabel: `${b.schedule.route.origin} → ${b.schedule.route.destination}`,
+                              departsAt: b.schedule.departsAt,
+                            });
+                            router.push("/checkout");
+                          }}
+                        >
+                          Pay
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </motion.section>
 
       <motion.section
         initial={reduce ? false : { opacity: 0, y: 12 }}
@@ -175,27 +275,25 @@ export default function HomePage() {
           damping: 32,
           delay: 0.08,
         }}
-        className="mt-12 sm:mt-14"
+        className="sm:mt-2"
         aria-label="Upcoming departures"
       >
-        <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">
               Available soon
             </h2>
             <p className="mt-1 max-w-xl text-sm text-zinc-400">
-              Next departures from all operators. Search to filter by route and
-              date.
+              Next departures across operators.{" "}
+              <Link
+                href="/search"
+                className="font-medium text-[hsl(152,65%,52%)] underline decoration-[hsl(152,65%,48%)]/50 underline-offset-2 hover:decoration-[hsl(152,65%,48%)]"
+              >
+                Search by date and cities
+              </Link>
+              .
             </p>
           </div>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="shrink-0 rounded-xl border-white/15 bg-white/5 text-zinc-100 hover:bg-white/10 hover:text-white"
-          >
-            <Link href="/search">Search all routes</Link>
-          </Button>
         </div>
 
         {upcomingError ? (
@@ -208,11 +306,11 @@ export default function HomePage() {
         ) : null}
 
         {upcomingLoading ? (
-          <div className="space-y-4" aria-busy="true">
+          <div className="space-y-2" aria-busy="true">
             {[0, 1, 2].map((i) => (
               <Skeleton
                 key={i}
-                className="h-36 w-full rounded-xl bg-white/10"
+                className="h-[5.75rem] w-full rounded-xl bg-white/10"
               />
             ))}
           </div>
@@ -222,7 +320,7 @@ export default function HomePage() {
         upcoming &&
         upcoming.length === 0 &&
         !upcomingError ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-zinc-900/40 px-8 py-14 text-center ring-1 ring-white/5">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-zinc-900/40 px-8 py-12 text-center ring-1 ring-white/5">
             <MapPin
               className="mb-3 h-10 w-10 text-zinc-500"
               aria-hidden
@@ -231,28 +329,28 @@ export default function HomePage() {
               No upcoming buses yet
             </p>
             <p className="mt-2 max-w-md text-sm text-zinc-400">
-              Operators publish schedules regularly. Use search to find a
-              specific trip, or check back later.
+              Operators add schedules often — try{" "}
+              <Link
+                href="/search"
+                className="font-medium text-[hsl(152,65%,52%)] underline underline-offset-2"
+              >
+                finding a route
+              </Link>{" "}
+              or check back later.
             </p>
-            <Button
-              asChild
-              className="mt-6 rounded-xl bg-[hsl(152,65%,48%)] px-6 font-semibold text-zinc-950 hover:bg-[hsl(152,65%,44%)]"
-            >
-              <Link href="/search">Open search</Link>
-            </Button>
           </div>
         ) : null}
 
         {!upcomingLoading && upcoming && upcoming.length > 0 ? (
           <motion.div
-            className="space-y-4"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
             initial="hidden"
             animate="show"
             variants={{
               hidden: {},
               show: {
                 transition: {
-                  staggerChildren: reduce ? 0 : 0.05,
+                  staggerChildren: reduce ? 0 : 0.03,
                 },
               },
             }}
@@ -260,12 +358,13 @@ export default function HomePage() {
             {upcoming.map((trip) => (
               <motion.div
                 key={trip.detail.schedule.id}
+                className="h-full min-h-0"
                 variants={{
-                  hidden: { opacity: 0, y: 12 },
+                  hidden: { opacity: 0, y: 8 },
                   show: {
                     opacity: 1,
                     y: 0,
-                    transition: { type: "spring", stiffness: 380, damping: 30 },
+                    transition: { type: "spring", stiffness: 420, damping: 32 },
                   },
                 }}
               >

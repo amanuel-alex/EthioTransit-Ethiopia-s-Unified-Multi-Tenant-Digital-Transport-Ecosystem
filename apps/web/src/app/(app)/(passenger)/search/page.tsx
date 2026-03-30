@@ -151,7 +151,7 @@ function SearchPageInner() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl lg:max-w-5xl">
+    <div className="mx-auto max-w-7xl">
       <PageHeader
         title="Search routes"
         description="Enter where you’re leaving from and where you’re going — we’ll show trips from all operators on your date."
@@ -217,11 +217,15 @@ function SearchPageInner() {
       </GlassCard>
 
       {loading ? (
-        <div className="space-y-4" aria-busy="true" aria-label="Loading results">
-          {[0, 1, 2, 3, 4].map((i) => (
+        <div
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          aria-busy="true"
+          aria-label="Loading results"
+        >
+          {Array.from({ length: 9 }, (_, i) => (
             <Skeleton
               key={i}
-              className="h-36 w-full rounded-xl bg-muted/60 dark:bg-white/10"
+              className="h-28 w-full rounded-xl bg-muted/60 dark:bg-white/10"
             />
           ))}
         </div>
@@ -256,14 +260,14 @@ function SearchPageInner() {
             </h2>
           </div>
           <motion.div
-            className="space-y-4"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
             initial="hidden"
             animate="show"
             variants={{
               hidden: {},
               show: {
                 transition: {
-                  staggerChildren: reduceMotion ? 0 : 0.05,
+                  staggerChildren: reduceMotion ? 0 : 0.03,
                 },
               },
             }}
@@ -271,6 +275,7 @@ function SearchPageInner() {
             {trips.map((trip) => (
               <motion.div
                 key={trip.detail.schedule.id}
+                className="h-full min-h-0"
                 variants={{
                   hidden: { opacity: 0, y: 12 },
                   show: {
