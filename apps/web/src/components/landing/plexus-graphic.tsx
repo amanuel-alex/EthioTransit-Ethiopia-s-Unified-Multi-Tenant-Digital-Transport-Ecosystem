@@ -35,14 +35,21 @@ export function PlexusGraphic() {
       transition={{ duration: 0.8 }}
     >
       <div
-        className="absolute inset-0 opacity-50"
+        className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 80% 70% at 70% 40%, hsl(152 65% 38% / 0.4), transparent 65%)",
+            "radial-gradient(ellipse 55% 50% at 52% 48%, hsl(152 78% 52% / 0.55), transparent 58%), radial-gradient(ellipse 100% 90% at 60% 45%, hsl(152 65% 42% / 0.35), transparent 70%), radial-gradient(ellipse 120% 100% at 80% 30%, hsl(152 50% 28% / 0.2), transparent 55%)",
+        }}
+      />
+      <div
+        className="absolute inset-0 mix-blend-screen opacity-90"
+        style={{
+          background:
+            "radial-gradient(circle at 52% 48%, hsl(152 90% 65% / 0.35), transparent 42%)",
         }}
       />
       <svg
-        className="relative h-full w-full text-[hsl(152,65%,48%)]"
+        className="relative h-full w-full text-[hsl(152,72%,52%)]"
         viewBox="0 0 100 100"
         preserveAspectRatio="xMidYMid slice"
         aria-hidden
@@ -55,12 +62,12 @@ export function PlexusGraphic() {
             x2={nodes[b]!.cx}
             y2={nodes[b]!.cy}
             stroke="currentColor"
-            strokeWidth={0.35}
-            strokeOpacity={0.45}
+            strokeWidth={0.38}
+            strokeOpacity={0.5}
           />
         ))}
         {nodes.map((n, i) => (
-          <circle key={i} cx={n.cx} cy={n.cy} r={1.4} fill="currentColor" />
+          <circle key={i} cx={n.cx} cy={n.cy} r={1.45} fill="currentColor" />
         ))}
       </svg>
     </motion.div>

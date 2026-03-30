@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   Bus,
@@ -11,7 +12,7 @@ import {
   MapPin,
   Navigation,
   Search,
-  Shield,
+  ShieldCheck,
   Sparkles,
   Zap,
 } from "lucide-react";
@@ -27,6 +28,11 @@ import { MotionSection } from "@/components/shared/motion-section";
 import { getOperatorPresets } from "@/lib/operators";
 import { useTenant } from "@/lib/tenant/tenant-context";
 import { cn } from "@/lib/utils";
+import {
+  AppStoreBadgeButton,
+  GooglePlayBadgeButton,
+} from "./download-badges";
+import { ContactSection } from "./contact-section";
 import { LandingFooter } from "./landing-footer";
 import { PlexusGraphic } from "./plexus-graphic";
 
@@ -49,6 +55,16 @@ export function LandingPage() {
   );
   const [operatorId, setOperatorId] = useState(() => presets[0]?.id ?? "");
   const [customId, setCustomId] = useState("");
+
+  const dateLabel = useMemo(() => {
+    const d = new Date(`${date}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return date;
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }, [date]);
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,26 +90,50 @@ export function LandingPage() {
           aria-hidden
           style={{
             background:
-              "radial-gradient(ellipse 90% 60% at 50% -10%, hsl(152 50% 20% / 0.35), transparent 55%), radial-gradient(ellipse 50% 40% at 50% 100%, hsl(152 40% 15% / 0.2), transparent 50%), #050505",
+              "radial-gradient(ellipse 85% 55% at 50% 15%, hsl(152 65% 32% / 0.28), transparent 58%), radial-gradient(ellipse 70% 50% at 50% 85%, hsl(152 55% 25% / 0.12), transparent 55%), #050505",
           }}
         />
-        <div className="relative mx-auto flex max-w-5xl flex-col items-center px-4 pb-24 pt-12 text-center sm:px-6 sm:pt-16 md:pt-20">
+        <div className="relative mx-auto flex max-w-5xl flex-col items-center px-4 pb-24 pt-10 text-center sm:px-6 sm:pt-14 md:pt-20">
           <motion.div
             initial={reduce ? false : { opacity: 0, y: 28 }}
             animate={reduce ? false : { opacity: 1, y: 0 }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             className="max-w-4xl"
           >
-            <h1 className="text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-[3.5rem] lg:leading-[1.08]">
-              Book Bus Tickets Across{" "}
-              <span className="bg-gradient-to-r from-[hsl(152,72%,46%)] to-[hsl(152,55%,58%)] bg-clip-text text-transparent">
-                Ethiopia Instantly
-              </span>
+            <h1 className="text-4xl font-bold leading-[1.12] tracking-tight sm:text-5xl md:text-6xl lg:text-[3.45rem] lg:leading-[1.1]">
+              <span className="text-white">Book Bus Tickets Across </span>
+              <span className="text-[hsl(152,72%,48%)]">Ethiopia Instantly</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-zinc-400 sm:text-lg">
+            <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-zinc-400 sm:text-lg sm:leading-relaxed">
               The premium gateway to intercity travel. Connecting Addis Ababa to
               the horizon with luxury, security, and real-time tracking.
             </p>
+          </motion.div>
+
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 24 }}
+            animate={reduce ? false : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+            className="relative mt-10 w-full max-w-5xl sm:mt-12"
+          >
+            <div className="relative aspect-[16/10] max-h-[min(22rem,52vh)] w-full overflow-hidden rounded-[1.75rem] border border-white/[0.12] shadow-[0_28px_64px_-18px_rgba(0,0,0,0.75)] sm:aspect-[21/9] sm:max-h-[min(20rem,45vh)]">
+              <Image
+                src="/landing-bus.jpg"
+                alt="Intercity coach at dusk, mountains in the background"
+                fill
+                className="object-cover object-[center_42%]"
+                priority
+                sizes="(max-width: 1024px) 100vw, 56rem"
+              />
+              <div
+                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/25 to-transparent"
+                aria-hidden
+              />
+              <div
+                className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#050505]/50 via-transparent to-transparent sm:from-[#050505]/35"
+                aria-hidden
+              />
+            </div>
           </motion.div>
 
           <motion.form
@@ -101,95 +141,101 @@ export function LandingPage() {
             initial={reduce ? false : { opacity: 0, y: 32 }}
             animate={reduce ? false : { opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-14 w-full max-w-4xl space-y-5"
+            className="mt-10 w-full max-w-4xl space-y-4 sm:mt-12"
           >
             <div
               className={cn(
-                "flex flex-col gap-3 rounded-[2rem] border border-white/[0.12] bg-white/[0.06] p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset] backdrop-blur-xl lg:flex-row lg:items-stretch lg:gap-0 lg:p-2 lg:pl-2",
+                "flex flex-col overflow-hidden rounded-[1.75rem] border border-white/[0.14] bg-white/[0.07] shadow-[0_0_0_1px_rgba(255,255,255,0.05)_inset,0_25px_50px_-12px_rgba(0,0,0,0.5)] backdrop-blur-2xl lg:flex-row lg:items-center lg:rounded-full lg:py-1.5 lg:pl-3 lg:pr-2",
               )}
             >
-              <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-center lg:gap-0">
-                <div className="flex min-h-[4.5rem] flex-1 flex-col justify-center border-b border-white/10 px-4 py-2 sm:border-b-0 lg:border-r lg:py-3">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[hsl(48,96%,58%)]">
+              <div className="flex flex-1 flex-col lg:flex-row lg:items-stretch">
+                <div className="flex min-h-[4.25rem] flex-1 flex-col justify-center border-b border-white/[0.1] px-5 py-3 lg:min-h-0 lg:border-b-0 lg:border-r lg:border-white/[0.12] lg:py-3.5">
+                  <span className="text-left text-[10px] font-bold uppercase tracking-[0.22em] text-[hsl(48,96%,56%)]">
                     From
                   </span>
-                  <div className="mt-1 flex items-center gap-2">
+                  <div className="mt-1 flex items-center gap-2.5">
                     <MapPin
-                      className="h-4 w-4 shrink-0 text-[hsl(152,65%,48%)]"
-                      strokeWidth={2}
+                      className="h-4 w-4 shrink-0 text-[hsl(152,70%,50%)]"
+                      strokeWidth={2.25}
                     />
                     <input
                       value={origin}
                       onChange={(e) => setOrigin(e.target.value)}
-                      className="w-full min-w-0 bg-transparent text-left text-sm font-medium text-white outline-none placeholder:text-zinc-600"
-                      placeholder="City"
+                      className="w-full min-w-0 bg-transparent text-left text-sm font-semibold text-white outline-none placeholder:text-zinc-600"
+                      placeholder="Addis Ababa"
                       required
                       aria-label="From"
                     />
                   </div>
                 </div>
-                <div className="flex min-h-[4.5rem] flex-1 flex-col justify-center border-b border-white/10 px-4 py-2 sm:border-b-0 lg:border-r lg:py-3">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[hsl(48,96%,58%)]">
+                <div className="flex min-h-[4.25rem] flex-1 flex-col justify-center border-b border-white/[0.1] px-5 py-3 lg:min-h-0 lg:border-b-0 lg:border-r lg:border-white/[0.12] lg:py-3.5">
+                  <span className="text-left text-[10px] font-bold uppercase tracking-[0.22em] text-[hsl(48,96%,56%)]">
                     To
                   </span>
-                  <div className="mt-1 flex items-center gap-2">
+                  <div className="mt-1 flex items-center gap-2.5">
                     <Navigation
-                      className="h-4 w-4 shrink-0 text-[hsl(152,65%,48%)]"
-                      strokeWidth={2}
+                      className="h-4 w-4 shrink-0 text-[hsl(152,70%,50%)]"
+                      strokeWidth={2.25}
                     />
                     <input
                       value={destination}
                       onChange={(e) => setDestination(e.target.value)}
-                      className="w-full min-w-0 bg-transparent text-left text-sm font-medium text-white outline-none placeholder:text-zinc-600"
-                      placeholder="City"
+                      className="w-full min-w-0 bg-transparent text-left text-sm font-semibold text-white outline-none placeholder:text-zinc-600"
+                      placeholder="Hawassa"
                       required
                       aria-label="To"
                     />
                   </div>
                 </div>
-                <div className="flex min-h-[4.5rem] flex-1 flex-col justify-center px-4 py-2 lg:py-3">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[hsl(48,96%,58%)]">
+                <div className="relative flex min-h-[4.25rem] flex-1 cursor-pointer flex-col justify-center px-5 py-3 lg:min-h-0 lg:py-3.5">
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                    className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                    aria-label="Travel date"
+                  />
+                  <span className="pointer-events-none text-left text-[10px] font-bold uppercase tracking-[0.22em] text-[hsl(48,96%,56%)]">
                     Date
                   </span>
-                  <div className="mt-1 flex items-center gap-2">
+                  <div className="pointer-events-none mt-1 flex min-h-[1.5rem] items-center gap-2.5">
                     <CalendarDays
-                      className="h-4 w-4 shrink-0 text-[hsl(152,65%,48%)]"
-                      strokeWidth={2}
+                      className="h-4 w-4 shrink-0 text-[hsl(152,70%,50%)]"
+                      strokeWidth={2.25}
                     />
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      required
-                      className="w-full min-w-0 cursor-pointer bg-transparent text-sm font-medium text-white outline-none [color-scheme:dark] md:max-w-[12rem]"
-                      aria-label="Travel date"
-                    />
+                    <span className="text-left text-sm font-semibold tabular-nums text-white">
+                      {dateLabel}
+                    </span>
                   </div>
                 </div>
               </div>
               <motion.div
                 whileHover={reduce ? undefined : { scale: 1.02 }}
                 whileTap={reduce ? undefined : { scale: 0.98 }}
-                className="shrink-0 lg:self-center lg:pl-2"
+                className="shrink-0 p-3 pt-0 lg:p-2 lg:pl-3"
               >
                 <Button
                   type="submit"
                   size="lg"
-                  className="h-12 w-full rounded-full border-0 bg-[hsl(152,65%,44%)] px-8 text-base font-semibold text-zinc-950 shadow-[0_0_32px_-6px_hsl(152,65%,45%)] hover:bg-[hsl(152,65%,50%)] lg:h-14 lg:w-auto"
+                  className="h-12 w-full rounded-full border-0 bg-[hsl(152,66%,44%)] px-8 text-base font-semibold text-zinc-950 shadow-[0_0_36px_-6px_hsl(152,72%,42%),0_0_20px_-4px_hsl(152,80%,35%)] transition-shadow hover:bg-[hsl(152,66%,50%)] hover:shadow-[0_0_40px_-4px_hsl(152,72%,48%)] lg:h-[3.25rem] lg:min-w-[10.5rem]"
                 >
-                  <Search className="mr-2 h-5 w-5" strokeWidth={2.25} />
+                  <Search className="mr-2 h-5 w-5" strokeWidth={2.35} />
                   Find Routes
                 </Button>
               </motion.div>
             </div>
 
-            <div className="mx-auto flex max-w-4xl flex-col gap-3 rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-              <p className="text-left text-xs text-zinc-500">
-                Operator required for search.{" "}
-                <Link href="/auth" className="text-[hsl(152,65%,48%)] underline">
+            <div className="mx-auto flex max-w-4xl flex-col gap-2.5 rounded-2xl border border-white/[0.07] bg-black/25 px-4 py-3 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-2.5">
+              <p className="text-left text-[11px] leading-snug text-zinc-500 sm:max-w-[55%]">
+                Operator tenant for search API.{" "}
+                <Link
+                  href="/auth"
+                  className="font-medium text-[hsl(152,68%,50%)] underline-offset-2 hover:underline"
+                >
                   Sign in
                 </Link>{" "}
-                after picking a route.
+                for saved bookings.
               </p>
               <div className="flex w-full flex-col gap-2 sm:max-w-xs">
                 {presets.length > 0 ? (
@@ -257,30 +303,38 @@ export function LandingPage() {
               transition={{ duration: 0.45 }}
               className="relative flex min-h-[340px] flex-col justify-end overflow-hidden rounded-3xl border border-white/10 bg-zinc-900/40 p-8 lg:col-span-7 lg:row-span-2"
             >
+              <div className="absolute inset-0" aria-hidden>
+                <Image
+                  src="/landing-bus.jpg"
+                  alt=""
+                  fill
+                  className="object-cover object-[center_38%]"
+                  sizes="(max-width: 1024px) 100vw, 58vw"
+                />
+              </div>
               <div
-                className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent"
+                className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/35"
                 aria-hidden
               />
               <div
-                className="absolute inset-0 opacity-30"
+                className="absolute inset-0"
                 style={{
                   backgroundImage:
-                    "linear-gradient(135deg, hsl(152 30% 12%) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, hsl(152 40% 25% / 0.4), transparent 50%)",
+                    "linear-gradient(125deg, hsl(152 28% 10%) 0%, transparent 42%), radial-gradient(ellipse 90% 60% at 100% 0%, hsl(28 85% 45% / 0.22), transparent 55%), radial-gradient(ellipse 70% 50% at 20% 15%, hsl(200 40% 35% / 0.12), transparent 50%)",
                 }}
                 aria-hidden
               />
-              <Bus
-                className="absolute -right-4 bottom-8 h-48 w-48 text-white/[0.07] sm:h-64 sm:w-64"
-                strokeWidth={0.5}
-                aria-hidden
-              />
               <div className="relative">
-                <span className="inline-flex rounded-xl bg-[hsl(152,65%,48%)]/20 p-2.5 text-[hsl(152,65%,48%)]">
-                  <Shield className="h-6 w-6" strokeWidth={2} />
+                <span className="inline-flex rounded-xl bg-[hsl(152,65%,46%)] p-2.5 text-white shadow-[0_0_24px_-8px_hsl(152,72%,42%)]">
+                  <ShieldCheck className="h-6 w-6" strokeWidth={2.25} />
                 </span>
                 <h2 className="mt-6 max-w-md text-2xl font-bold leading-tight text-white sm:text-3xl">
                   Secured Transactions &amp; Travel Insurance
                 </h2>
+                <p className="mt-4 max-w-lg text-sm leading-relaxed text-zinc-400 sm:text-[15px]">
+                  Every booking is encrypted with fintech-grade security and
+                  includes a mandatory travel safety coverage for peace of mind.
+                </p>
               </div>
             </motion.div>
 
@@ -316,10 +370,11 @@ export function LandingPage() {
                 <Zap className="h-6 w-6" strokeWidth={2} />
               </span>
               <div className="mt-8">
-                <h3 className="text-xl font-bold text-white">Instant Booking</h3>
+                <h3 className="text-xl font-bold text-white">Instant Ticketing</h3>
                 <p className="mt-3 text-sm leading-relaxed text-zinc-500">
-                  Lock seats in seconds with live availability, M-Pesa, and Chapa —
-                  built for Ethiopian corridors.
+                  Zero queue wait times. Book and receive your digital ticket via{" "}
+                  <strong className="font-semibold text-zinc-300">SMS and Email</strong>{" "}
+                  in 60 seconds.
                 </p>
               </div>
             </motion.div>
@@ -371,31 +426,19 @@ export function LandingPage() {
                   seat selection.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="h-12 rounded-full border-0 bg-white px-6 font-semibold text-zinc-950 hover:bg-zinc-100"
-                    onClick={() => router.push("/auth")}
-                  >
-                    App Store
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-12 rounded-full border-white/20 bg-transparent px-6 font-semibold text-white hover:bg-white/5"
-                    onClick={() => router.push("/auth")}
-                  >
-                    Google Play
-                  </Button>
+                  <AppStoreBadgeButton onClick={() => router.push("/auth")} />
+                  <GooglePlayBadgeButton onClick={() => router.push("/auth")} />
                 </div>
               </div>
-              <div className="relative min-h-[240px] border-t border-white/5 md:border-l md:border-t-0">
+              <div className="relative min-h-[240px] border-t border-white/5 bg-[hsl(152,28%,7%)] md:border-l md:border-t-0">
                 <PlexusGraphic />
               </div>
             </div>
           </div>
         </div>
       </MotionSection>
+
+      <ContactSection />
 
       <LandingFooter />
     </div>

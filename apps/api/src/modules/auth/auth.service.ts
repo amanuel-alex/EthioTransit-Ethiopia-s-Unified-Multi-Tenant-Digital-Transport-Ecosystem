@@ -7,6 +7,25 @@ import { signAccessToken } from "../../utils/jwt.utils.js";
 
 const REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** Align common Ethiopian inputs with DB E.164 (+2519…), e.g. 09… → +2519…. */
+export function normalizeLoginPhone(raw: string): string {
+  const trimmed = raw.trim().replace(/\s+/g, "");
+  const digits = trimmed.replace(/\D/g, "");
+  if (trimmed.startsWith("+")) {
+    return `+${digits}`;
+  }
+  if (digits.startsWith("251")) {
+    return `+${digits}`;
+  }
+  if (digits.startsWith("0")) {
+    return `+251${digits.slice(1)}`;
+  }
+  if (digits.length === 9) {
+    return `+251${digits}`;
+  }
+  return `+${digits}`;
+}
+
 function parseRefreshTokenPayload(raw: string): { id: string; secret: string } {
   const i = raw.indexOf(".");
   if (i <= 0 || i === raw.length - 1) {
@@ -37,9 +56,18 @@ export async function loginWithPhone(phone: string, code?: string) {
     throw new HttpError(401, "invalid_code", "Invalid or missing verification code");
   }
 
-  const user = await prisma.user.findUnique({ where: { phone } });
+  const normalized = normalizeLoginPhone(phone);
+  const user = await prisma.user.findUnique({ where: { phone: normalized } });
   if (!user) {
-    throw new HttpError(404, "user_not_found", "User not found for this phone");
+    const devHint =
+      env.NODE_ENV === "development"
+        ? " Run db:seed, then try +251900000003 (passenger), +251900000002 (operator), or +251900000001 (admin)."
+        : "";
+    throw new HttpError(
+      404,
+      "user_not_found",
+      `No account for this phone.${devHint}`,
+    );
   }
 
   const secret = randomToken(32);

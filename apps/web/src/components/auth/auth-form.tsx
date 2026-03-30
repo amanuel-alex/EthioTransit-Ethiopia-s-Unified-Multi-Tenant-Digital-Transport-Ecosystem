@@ -16,6 +16,10 @@ const DEV_HINT =
     ? process.env.NEXT_PUBLIC_DEV_OTP
     : undefined;
 
+const SHOW_SEED_HINT =
+  typeof process !== "undefined" &&
+  (process.env.NODE_ENV === "development" || Boolean(DEV_HINT));
+
 export function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -136,6 +140,17 @@ export function AuthForm() {
                 </code>{" "}
                 (must match <code className="font-mono text-xs">AUTH_DEV_CODE</code>{" "}
                 on the API).
+              </span>
+            ) : null}
+            {SHOW_SEED_HINT ? (
+              <span className="mt-2 block text-xs text-muted-foreground">
+                Seeded users (after{" "}
+                <code className="rounded bg-muted px-1 font-mono">db:seed</code>
+                ):{" "}
+                <span className="font-mono">+251900000003</span> passenger,{" "}
+                <span className="font-mono">+251900000002</span> operator,{" "}
+                <span className="font-mono">+251900000001</span> admin. Local{" "}
+                <span className="font-mono">09…</span> is accepted too.
               </span>
             ) : null}
           </CardDescription>
