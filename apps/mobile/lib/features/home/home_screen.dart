@@ -222,7 +222,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList.separated(
                       itemCount: list.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      separatorBuilder: (context, index) => const SizedBox(height: 12),
                       itemBuilder: (ctx, i) {
                         final hit = list[i];
                         return TripCard(

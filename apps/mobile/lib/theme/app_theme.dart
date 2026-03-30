@@ -11,10 +11,10 @@ abstract final class AppColors {
 }
 
 ThemeData buildEthioTheme({required bool dark}) {
-  final base = dark ? ThemeData.dark() : ThemeData.light();
+  final base =
+      dark ? ThemeData.dark(useMaterial3: true) : ThemeData.light(useMaterial3: true);
   final green = AppColors.ethGreen;
   return base.copyWith(
-    useMaterial3: true,
     colorScheme: base.colorScheme.copyWith(
       primary: green,
       secondary: AppColors.ethYellow,
@@ -47,7 +47,7 @@ ThemeData buildEthioTheme({required bool dark}) {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: green, width: 2),
+        borderSide: BorderSide(color: green, width: 2),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(

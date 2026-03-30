@@ -22,12 +22,15 @@ class BookingRow {
     final route = s['route'] as Map<String, dynamic>;
     final bus = s['bus'] as Map<String, dynamic>;
     final seatList = j['seats'] as List<dynamic>? ?? [];
+    final createdRaw = j['createdAt'] as String?;
     return BookingRow(
       id: j['id'] as String,
       status: j['status'] as String,
       totalAmount: j['totalAmount'].toString(),
       currency: j['currency'] as String? ?? 'ETB',
-      createdAt: DateTime.parse(j['createdAt'] as String),
+      createdAt: createdRaw != null
+          ? DateTime.parse(createdRaw)
+          : DateTime.parse(s['departsAt'] as String),
       schedule: BookingSchedule(
         id: s['id'] as String,
         departsAt: DateTime.parse(s['departsAt'] as String),

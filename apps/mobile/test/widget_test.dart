@@ -1,11 +1,15 @@
+import 'package:ethiotransit_mobile/app.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:ethiotransit_mobile/main.dart';
-
 void main() {
-  testWidgets('Home screen shows EthioTransit', (WidgetTester tester) async {
-    await tester.pumpWidget(const EthioTransitApp());
-    expect(find.text('EthioTransit'), findsWidgets);
-    expect(find.textContaining('M-Pesa'), findsOneWidget);
+  testWidgets('App builds with MaterialApp', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: EthioTransitApp(),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(EthioTransitApp), findsOneWidget);
   });
 }

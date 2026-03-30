@@ -303,8 +303,8 @@ class EthiotransitRepository {
         data: {
           'bookingId': bookingId,
           'email': email,
-          if (firstName != null) 'firstName': firstName,
-          if (lastName != null) 'lastName': lastName,
+          'firstName': ?firstName,
+          'lastName': ?lastName,
         },
       );
       return res.data!;
