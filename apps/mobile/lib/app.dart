@@ -1,3 +1,4 @@
+import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,6 +19,8 @@ class EthioTransitApp extends ConsumerWidget {
     return MaterialApp(
       title: 'EthioTransit',
       debugShowCheckedModeBanner: false,
+      locale: DevicePreview.locale(context),
+      builder: DevicePreview.appBuilder,
       theme: buildEthioTheme(dark: false),
       darkTheme: buildEthioTheme(dark: true),
       themeMode: dark ? ThemeMode.dark : ThemeMode.light,
