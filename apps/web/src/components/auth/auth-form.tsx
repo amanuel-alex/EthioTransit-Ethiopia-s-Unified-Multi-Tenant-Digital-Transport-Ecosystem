@@ -27,8 +27,8 @@ export function AuthForm() {
   let nextPath =
     nextRaw && nextRaw.startsWith("/") && !nextRaw.startsWith("//")
       ? decodeURIComponent(nextRaw)
-      : "/home";
-  if (nextPath.startsWith("/auth")) nextPath = "/home";
+      : "/search";
+  if (nextPath.startsWith("/auth")) nextPath = "/search";
 
   const { login, accessToken, user } = useAuth();
   const reduce = useReducedMotion();

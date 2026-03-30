@@ -19,7 +19,7 @@ function AuthGateInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     if (!accessToken) {
-      const next = encodeURIComponent(fullPath || "/home");
+      const next = encodeURIComponent(fullPath || "/search");
       router.replace(`/auth?next=${next}`);
     }
   }, [ready, accessToken, fullPath, router]);

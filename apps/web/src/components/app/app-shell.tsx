@@ -20,6 +20,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { PassengerSeatHeader } from "@/components/app/passenger-seat-header";
 import { ADMIN_NAV } from "@/components/dashboard/admin-nav";
 import { OPERATOR_NAV } from "@/components/dashboard/operator-nav";
 import { OperatorSidebar } from "@/components/dashboard/operator-sidebar";
@@ -31,9 +32,11 @@ import { cn } from "@/lib/utils";
 function NavLink({
   href,
   children,
+  variant = "light",
 }: {
   href: string;
   children: React.ReactNode;
+  variant?: "light" | "dark";
 }) {
   const pathname = usePathname();
   const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -41,10 +44,14 @@ function NavLink({
     <Link
       href={href}
       className={cn(
-        "rounded-md px-3 py-2 text-sm font-medium transition-colors",
-        active
-          ? "bg-primary/15 text-primary"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        "shrink-0 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        variant === "dark"
+          ? active
+            ? "bg-[hsl(152,65%,48%)]/18 text-[hsl(152,65%,54%)]"
+            : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
+          : active
+            ? "bg-primary/15 text-primary"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >
       {children}
@@ -61,7 +68,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isAdminSidebarRoute =
     role === "ADMIN" && pathname.startsWith("/admin");
   const isOperatorShell = role === "COMPANY";
+  /** Passengers: dark shell + seat-style header only after search (seat → checkout → ticket). Hub stays light. */
+  const passengerBookingChrome =
+    role === "PASSENGER" &&
+    (pathname.startsWith("/seat") ||
+      pathname.startsWith("/checkout") ||
+      pathname.startsWith("/ticket"));
   const useDarkConsoleShell = isOperatorShell || isAdminSidebarRoute;
+  const useDarkRoot = useDarkConsoleShell || passengerBookingChrome;
 
   const homeHref =
     role === "PASSENGER"
@@ -76,7 +90,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div
       className={cn(
         "flex min-h-screen flex-col",
-        useDarkConsoleShell && "dark bg-[#050505] text-zinc-100",
+        useDarkRoot && "dark bg-[#050505] text-zinc-100",
       )}
     >
       {isOperatorShell ? <OperatorSidebar className="hidden md:flex" /> : null}
@@ -225,6 +239,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
+        ) : passengerBookingChrome ? (
+          <PassengerSeatHeader />
         ) : (
           <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-md">
             <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
@@ -238,7 +254,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="hidden sm:inline">EthioTransit</span>
               </Link>
 
-              <nav className="flex flex-1 flex-wrap items-center justify-center gap-1 sm:gap-2">
+              <nav className="flex min-w-0 flex-1 flex-nowrap items-center justify-center gap-1 overflow-x-auto py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-2">
                 {role === "PASSENGER" ? (
                   <>
                     <NavLink href="/home">Home</NavLink>

@@ -1,46 +1,49 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   Armchair,
   BadgeCheck,
-  Bus,
   Shield,
+  Usb,
   Wifi,
-  Zap,
 } from "lucide-react";
 import { BookingSummaryBar } from "@/components/booking/booking-summary-bar";
 import { SeatMap } from "@/components/booking/seat-map";
-import { GlassCard } from "@/components/shared/glass-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/api/hooks";
 import type { ScheduleDetail } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/auth-context";
 import { saveCheckoutDraft } from "@/lib/booking/checkout-storage";
 
-/** Immersive dark shell: passenger app shell stays light unless user enables global dark. */
-function SeatExperienceShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="dark -mx-4 min-h-[65vh] rounded-2xl bg-zinc-950 px-4 py-6 text-zinc-50 shadow-xl ring-1 ring-white/10 sm:mx-0 sm:px-6 md:px-8">
-      {children}
-    </div>
-  );
-}
+const BUS_HERO_SRC =
+  "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=960&q=82";
 
 function SeatSkeletonCoach() {
   return (
-    <div className="rounded-3xl border border-white/10 bg-zinc-900/80 p-6">
-      <Skeleton className="mb-6 h-12 w-full max-w-md rounded-xl bg-white/5" />
-      <div className="mx-auto max-w-md space-y-3">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} className="flex gap-2">
-            <Skeleton className="h-12 flex-1 rounded-xl bg-white/5" />
-            <Skeleton className="h-12 flex-1 rounded-xl bg-white/5" />
+    <div className="rounded-[1.25rem] border border-white/10 bg-zinc-900/80 p-6">
+      <div className="mb-6 flex justify-end border-b border-white/10 pb-5">
+        <Skeleton className="h-11 w-11 rounded-full bg-white/10" />
+      </div>
+      <div className="mx-auto max-w-lg space-y-3">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="flex gap-2 sm:gap-3">
+            <Skeleton className="h-12 flex-1 rounded-full bg-white/5" />
+            <Skeleton className="h-12 flex-1 rounded-full bg-white/5" />
             <Skeleton className="h-12 w-2 shrink-0 rounded-full bg-white/5" />
-            <Skeleton className="h-12 w-12 shrink-0 rounded-xl bg-white/5" />
+            <Skeleton className="h-12 flex-1 rounded-full bg-white/5" />
+            <Skeleton className="h-12 flex-1 rounded-full bg-white/5" />
           </div>
         ))}
       </div>
@@ -82,6 +85,13 @@ function SeatPageInner() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    document.documentElement.style.scrollPaddingBottom = "8rem";
+    return () => {
+      document.documentElement.style.scrollPaddingBottom = "";
+    };
+  }, []);
 
   const availableSet = useMemo(() => {
     if (!detail) return new Set<number>();
@@ -135,36 +145,46 @@ function SeatPageInner() {
     }
   };
 
+  const shell = (children: ReactNode, opts?: { bareMessage?: boolean }) => (
+    <div
+      className={cnShell(
+        "text-zinc-50",
+        opts?.bareMessage ? "py-10" : "pb-56 pt-6 sm:pt-8",
+      )}
+    >
+      {children}
+    </div>
+  );
+
   if (!scheduleId) {
-    return (
-      <SeatExperienceShell>
-        <p className="text-zinc-400">
-          Missing schedule. Go back to{" "}
-          <button
-            type="button"
-            className="font-medium text-[hsl(152,65%,48%)] underline underline-offset-4 hover:text-[hsl(152,65%,55%)]"
-            onClick={() => router.push("/search")}
-          >
-            search
-          </button>
-          .
-        </p>
-      </SeatExperienceShell>
+    return shell(
+      <p className="text-zinc-400">
+        Missing schedule. Go back to{" "}
+        <button
+          type="button"
+          className="font-medium text-[hsl(152,65%,48%)] underline underline-offset-4 hover:text-[hsl(152,65%,55%)]"
+          onClick={() => router.push("/search")}
+        >
+          search
+        </button>
+        .
+      </p>,
+      { bareMessage: true },
     );
   }
 
   if (loading || !detail) {
-    return (
-      <SeatExperienceShell>
-        <div className="space-y-6 pb-40">
-          <Skeleton className="h-8 w-full max-w-lg rounded-lg bg-white/10" />
+    return shell(
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-full max-w-lg rounded-lg bg-white/10" />
           <Skeleton className="h-4 w-2/3 max-w-xl rounded bg-white/10" />
-          <div className="grid gap-8 lg:grid-cols-[1fr_minmax(280px,320px)]">
-            <SeatSkeletonCoach />
-            <Skeleton className="hidden min-h-[420px] rounded-2xl bg-white/10 lg:block" />
-          </div>
         </div>
-      </SeatExperienceShell>
+        <div className="grid gap-8 lg:grid-cols-[1fr_minmax(300px,360px)] lg:items-start">
+          <SeatSkeletonCoach />
+          <Skeleton className="hidden min-h-[480px] rounded-2xl bg-white/10 lg:block" />
+        </div>
+      </div>,
     );
   }
 
@@ -177,49 +197,62 @@ function SeatPageInner() {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(detail.schedule.departsAt));
-  const busLabel = `${detail.schedule.bus.plateNumber} · Luxury coach`;
+  const plate = detail.schedule.bus.plateNumber;
+  const busLine = `${plate} · Luxury express`;
 
-  return (
-    <SeatExperienceShell>
-      <div className="pb-40 pt-2">
+  return shell(
+    <>
       <motion.div
         initial={reduceMotion ? false : { opacity: 0, y: 12 }}
         animate={reduceMotion ? false : { opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 380, damping: 32 }}
-        className="mb-8 space-y-2"
+        className="mb-8 space-y-3"
       >
-        <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
+        <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl lg:text-[2.75rem] lg:leading-tight">
           Select your{" "}
           <span className="text-[hsl(152,65%,48%)]">Throne</span>
         </h1>
-        <p className="max-w-2xl text-sm text-zinc-400 md:text-base">
-          {routeTitle}
-          <span className="text-zinc-600"> · </span>
-          <span className="text-zinc-300">{busLabel}</span>
-          <span className="mt-1 block text-xs text-zinc-500">{departs}</span>
+        <p className="max-w-3xl text-sm leading-relaxed text-zinc-500 md:text-base">
+          <span className="font-medium text-zinc-300">{routeTitle}</span>
+          <span className="text-zinc-700"> • </span>
+          <span>{busLine}</span>
         </p>
+        <p className="text-xs text-zinc-600">{departs}</p>
       </motion.div>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_minmax(280px,320px)] lg:items-start">
+      <div className="grid gap-8 lg:grid-cols-[1fr_minmax(300px,360px)] lg:items-start lg:gap-10">
         <div className="space-y-6">
-          <div className="flex flex-wrap gap-4 text-xs font-medium uppercase tracking-wider text-zinc-400">
-            <div className="flex items-center gap-2">
+          <div
+            className="flex flex-wrap gap-2 sm:gap-3"
+            role="list"
+            aria-label="Seat legend"
+          >
+            <div
+              role="listitem"
+              className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-zinc-800/75 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500"
+            >
               <span
-                className="h-4 w-4 rounded border-2 border-[hsl(152,65%,42%)]/80 bg-zinc-800/40"
+                className="h-3.5 w-3.5 shrink-0 rounded-sm border-2 border-[hsl(152,65%,48%)] bg-zinc-900/90"
                 aria-hidden
               />
               Available
             </div>
-            <div className="flex items-center gap-2">
+            <div
+              role="listitem"
+              className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-zinc-800/75 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500"
+            >
               <span
-                className="h-4 w-4 rounded border-2 border-[hsl(152,65%,48%)] bg-[hsl(152,65%,48%)] shadow-[0_0_12px_hsla(152,65%,48%,0.4)]"
+                className="h-3.5 w-3.5 shrink-0 rounded-sm border-2 border-[hsl(152,65%,44%)] bg-[hsl(152,65%,48%)] shadow-[0_0_12px_hsla(152,65%,48%,0.35)]"
                 aria-hidden
               />
               Selected
             </div>
-            <div className="flex items-center gap-2">
+            <div
+              role="listitem"
+              className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-zinc-800/75 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500"
+            >
               <span
-                className="h-4 w-4 rounded border border-zinc-600 bg-zinc-800/50 opacity-70"
+                className="h-3.5 w-3.5 shrink-0 rounded-sm border border-zinc-600 bg-zinc-700/90"
                 aria-hidden
               />
               Booked
@@ -236,63 +269,75 @@ function SeatPageInner() {
           />
         </div>
 
-        <aside className="lg:sticky lg:top-24">
-          <GlassCard className="overflow-hidden border-white/10 bg-zinc-900/40 p-0 backdrop-blur-xl">
-            <div className="relative aspect-[4/3] bg-gradient-to-br from-zinc-800 via-zinc-900 to-emerald-950/40">
-              <div className="absolute inset-0 flex items-center justify-center opacity-90">
-                <Bus
-                  className="h-24 w-24 text-zinc-600 sm:h-28 sm:w-28"
-                  strokeWidth={1}
-                  aria-hidden
-                />
-              </div>
-              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-zinc-950/90 to-transparent" />
+        <aside className="space-y-4 lg:sticky lg:top-24">
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/55 shadow-2xl ring-1 ring-white/5 backdrop-blur-xl">
+            <div className="relative aspect-[4/3] bg-zinc-950">
+              <Image
+                src={BUS_HERO_SRC}
+                alt="Intercity coach"
+                fill
+                className="object-cover"
+                sizes="(min-width: 1024px) 360px, 100vw"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
             </div>
-            <div className="space-y-4 p-5">
+            <div className="space-y-5 p-5 sm:p-6">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg font-semibold text-white">
-                    {detail.schedule.bus.plateNumber}
+                  <h2 className="text-lg font-semibold tracking-tight text-white">
+                    {plate} Executive
                   </h2>
                   <BadgeCheck
                     className="h-5 w-5 shrink-0 text-[hsl(152,65%,48%)]"
                     aria-label="Verified fleet"
                   />
                 </div>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-amber-400/90">
+                <p className="mt-1.5 text-[11px] font-bold uppercase tracking-[0.25em] text-amber-400/95">
                   Premium fleet
                 </p>
               </div>
-              <ul className="space-y-3 text-sm text-zinc-300">
+              <ul className="space-y-3.5 text-sm leading-snug text-zinc-300">
                 <li className="flex items-start gap-3">
-                  <Wifi className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(152,65%,48%)]" />
-                  High-speed Wi‑Fi on board
+                  <Wifi
+                    className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(152,65%,48%)]"
+                    strokeWidth={2}
+                  />
+                  High-speed 5G Wi‑Fi
                 </li>
                 <li className="flex items-start gap-3">
-                  <Zap className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(152,65%,48%)]" />
-                  USB charging at every seat
+                  <Usb
+                    className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(152,65%,48%)]"
+                    strokeWidth={2}
+                  />
+                  USB‑C fast charging
                 </li>
                 <li className="flex items-start gap-3">
-                  <Armchair className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(152,65%,48%)]" />
-                  Reclining seats &amp; extra legroom
+                  <Armchair
+                    className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(152,65%,48%)]"
+                    strokeWidth={2}
+                  />
+                  180° reclining seats
                 </li>
               </ul>
-              <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
-                <div className="flex gap-3">
-                  <Shield className="h-5 w-5 shrink-0 text-amber-400" />
-                  <div>
-                    <p className="text-sm font-semibold text-amber-200">
-                      Safe passage
-                    </p>
-                    <p className="mt-1 text-xs leading-relaxed text-zinc-400">
-                      GPS-tracked trips and insured operators on the EthioTransit
-                      network.
-                    </p>
-                  </div>
-                </div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4 sm:p-5">
+            <div className="flex gap-3">
+              <Shield
+                className="h-5 w-5 shrink-0 text-amber-400"
+                strokeWidth={2}
+              />
+              <div>
+                <p className="text-sm font-semibold text-white">
+                  Safe passage guarantee
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+                  Real-time GPS tracking &amp; premium insurance included.
+                </p>
               </div>
             </div>
-          </GlassCard>
+          </div>
         </aside>
       </div>
 
@@ -305,16 +350,23 @@ function SeatPageInner() {
         loading={submitting}
         disabled={submitting}
       />
-      </div>
-    </SeatExperienceShell>
+    </>,
   );
+}
+
+function cnShell(...parts: (string | undefined | false)[]) {
+  return [
+    "relative -mx-4 w-[calc(100%+2rem)] max-w-none sm:-mx-6 sm:w-[calc(100%+3rem)]",
+    "seat-page-canvas min-h-[calc(100dvh-8rem)] px-4 sm:px-6",
+    ...parts.filter(Boolean),
+  ].join(" ");
 }
 
 export default function SeatPage() {
   return (
     <Suspense
       fallback={
-        <div className="dark -mx-4 rounded-2xl bg-zinc-950 px-4 py-8 sm:mx-0">
+        <div className={cnShell("py-10")}>
           <Skeleton className="h-64 w-full rounded-xl bg-white/10" />
         </div>
       }

@@ -2,7 +2,6 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef } from "react";
-import { Bus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -11,20 +10,47 @@ type Props = {
   occupied: Set<number>;
   selected: number[];
   onToggle: (seatNo: number) => void;
-  /** 2+1 coach layout (aisle); fallback grid if capacity is tiny */
+  /** 2+2 coach (aisle); grid fallback if layout is grid */
   layout?: "coach" | "grid";
 };
 
-function buildCoachRows(capacity: number): (number | null)[][] {
+/** 2+2 intercity layout: left pair | aisle | right pair */
+function buildCoachRows22(capacity: number): (number | null)[][] {
   const rows: (number | null)[][] = [];
   let s = 1;
   while (s <= capacity) {
-    const a = s++;
-    const b = s <= capacity ? s++ : null;
-    const c = s <= capacity ? s++ : null;
-    rows.push([a, b, c]);
+    const c1 = s++;
+    const c2 = s <= capacity ? s++ : null;
+    const c3 = s <= capacity ? s++ : null;
+    const c4 = s <= capacity ? s++ : null;
+    rows.push([c1, c2, c3, c4]);
   }
   return rows;
+}
+
+function SteeringFrontMark({ className }: { className?: string }) {
+  return (
+    <div
+      role="img"
+      aria-label="Front of coach"
+      className={cn(
+        "flex h-11 w-11 items-center justify-center rounded-full border-2 border-zinc-600 bg-zinc-800/90 shadow-inner",
+        className,
+      )}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        className="h-6 w-6 text-zinc-400"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <circle cx="12" cy="12" r="8" />
+        <circle cx="12" cy="12" r="2.25" fill="currentColor" />
+        <path d="M12 4v2.5M12 17.5V20M4 12h2.5M17.5 12H20" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
 }
 
 function SeatCell({
@@ -64,14 +90,14 @@ function SeatCell({
       }}
       whileTap={reduce || disabled ? undefined : { scale: 0.92 }}
       className={cn(
-        "scroll-my-8 scroll-mt-4 scroll-mb-32 flex aspect-square min-h-[44px] max-h-[52px] w-full items-center justify-center rounded-xl border-2 text-xs font-semibold tabular-nums transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(152,65%,48%)] focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900",
+        "scroll-my-8 scroll-mt-4 scroll-mb-32 flex aspect-square min-h-[44px] max-h-[52px] w-full items-center justify-center rounded-full border-2 text-xs font-semibold tabular-nums transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(152,65%,48%)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#121214]",
         isSel &&
-          "border-[hsl(152,65%,48%)] bg-[hsl(152,65%,48%)] text-zinc-950 shadow-[0_0_24px_hsla(152,65%,48%,0.45)]",
+          "border-[hsl(152,65%,48%)] bg-[hsl(152,65%,48%)] text-zinc-950 shadow-[0_0_24px_hsla(152,65%,48%,0.52)]",
         !isSel &&
           isAvail &&
-          "border-[hsl(152,65%,42%)]/80 bg-zinc-800/40 text-zinc-100 hover:border-[hsl(152,65%,48%)] hover:bg-zinc-800",
+          "border-[hsl(152,65%,52%)]/95 bg-zinc-950/85 text-zinc-100 shadow-none hover:border-[hsl(152,65%,54%)] hover:bg-zinc-900/90",
         disabled &&
-          "cursor-not-allowed border-zinc-700/60 bg-zinc-800/30 text-zinc-600 line-through opacity-70",
+          "cursor-not-allowed border-zinc-800 bg-zinc-900/55 text-zinc-600 opacity-45 line-through",
       )}
       aria-pressed={isSel}
       aria-label={
@@ -83,6 +109,10 @@ function SeatCell({
       {label}
     </motion.button>
   );
+}
+
+function EmptySeatSlot() {
+  return <span className="min-h-[44px] min-w-0 flex-1" aria-hidden />;
 }
 
 export function SeatMap({
@@ -115,37 +145,31 @@ export function SeatMap({
   }, [selected, reduce]);
 
   if (layout === "coach") {
-    const rows = buildCoachRows(capacity);
+    const rows = buildCoachRows22(capacity);
     return (
       <motion.div
         ref={mapRootRef}
         data-ethio-seat-map
-        className="rounded-3xl border border-white/10 bg-gradient-to-b from-zinc-900/95 to-zinc-950/98 p-4 shadow-2xl sm:p-6 md:p-8"
+        className="rounded-[1.35rem] border border-white/[0.08] bg-[#121214]/95 p-5 shadow-[0_32px_90px_rgba(0,0,0,0.72)] ring-1 ring-white/[0.04] sm:p-7 md:p-8"
         initial="hidden"
         animate="show"
         variants={{
           hidden: { opacity: 0 },
           show: {
             opacity: 1,
-            transition: { staggerChildren: stagger, delayChildren: reduce ? 0 : 0.05 },
+            transition: {
+              staggerChildren: stagger,
+              delayChildren: reduce ? 0 : 0.05,
+            },
           },
         }}
       >
-        <div className="mb-6 flex items-center justify-between gap-3 border-b border-white/10 pb-4">
-          <div className="flex items-center gap-2 text-zinc-500">
-            <Bus className="h-5 w-5 text-[hsl(152,65%,48%)]" aria-hidden />
-            <span className="text-xs font-medium uppercase tracking-wider">Front</span>
-          </div>
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-zinc-600 bg-zinc-800/80"
-            aria-hidden
-          >
-            <span className="text-lg text-zinc-400">◎</span>
-          </div>
+        <div className="mb-6 flex items-center justify-end border-b border-white/10 pb-5">
+          <SteeringFrontMark />
         </div>
 
-        <div className="mx-auto flex max-w-md flex-col gap-3">
-          {rows.map((triple, rowIdx) => (
+        <div className="mx-auto flex max-w-lg flex-col gap-3 sm:gap-3.5">
+          {rows.map((quads, rowIdx) => (
             <motion.div
               key={rowIdx}
               variants={{
@@ -155,9 +179,9 @@ export function SeatMap({
               className="flex items-stretch gap-2 sm:gap-3"
             >
               <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:gap-3">
-                {triple[0] != null ? (
+                {quads[0] != null ? (
                   <SeatCell
-                    seatNo={triple[0]}
+                    seatNo={quads[0]}
                     available={available}
                     occupied={occupied}
                     selected={selected}
@@ -165,11 +189,11 @@ export function SeatMap({
                     reduce={reduce}
                   />
                 ) : (
-                  <span className="min-h-[44px]" />
+                  <EmptySeatSlot />
                 )}
-                {triple[1] != null ? (
+                {quads[1] != null ? (
                   <SeatCell
-                    seatNo={triple[1]}
+                    seatNo={quads[1]}
                     available={available}
                     occupied={occupied}
                     selected={selected}
@@ -177,26 +201,38 @@ export function SeatMap({
                     reduce={reduce}
                   />
                 ) : (
-                  <span className="min-h-[44px]" />
+                  <EmptySeatSlot />
                 )}
               </div>
               <div
-                className="w-2 shrink-0 self-stretch rounded-full bg-zinc-700/80"
+                className="w-2 shrink-0 self-stretch rounded-full bg-zinc-700/75"
                 aria-hidden
               />
-              <div className="flex w-[52px] shrink-0 justify-center sm:w-[56px]">
-                {triple[2] != null ? (
-                  <div className="w-full">
-                    <SeatCell
-                      seatNo={triple[2]}
-                      available={available}
-                      occupied={occupied}
-                      selected={selected}
-                      onToggle={onToggle}
-                      reduce={reduce}
-                    />
-                  </div>
-                ) : null}
+              <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:gap-3">
+                {quads[2] != null ? (
+                  <SeatCell
+                    seatNo={quads[2]}
+                    available={available}
+                    occupied={occupied}
+                    selected={selected}
+                    onToggle={onToggle}
+                    reduce={reduce}
+                  />
+                ) : (
+                  <EmptySeatSlot />
+                )}
+                {quads[3] != null ? (
+                  <SeatCell
+                    seatNo={quads[3]}
+                    available={available}
+                    occupied={occupied}
+                    selected={selected}
+                    onToggle={onToggle}
+                    reduce={reduce}
+                  />
+                ) : (
+                  <EmptySeatSlot />
+                )}
               </div>
             </motion.div>
           ))}
@@ -221,7 +257,10 @@ export function SeatMap({
         hidden: { opacity: 0 },
         show: {
           opacity: 1,
-          transition: { staggerChildren: stagger, delayChildren: reduce ? 0 : 0.04 },
+          transition: {
+            staggerChildren: stagger,
+            delayChildren: reduce ? 0 : 0.04,
+          },
         },
       }}
     >

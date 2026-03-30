@@ -6,12 +6,14 @@ import { HttpError } from "../../utils/errors.js";
 export async function searchRoutes(params: {
   tenantId: string | null;
   admin: boolean;
+  passenger: boolean;
   origin: string;
   destination: string;
 }) {
   const where: Prisma.RouteWhereInput = {
     origin: { equals: params.origin, mode: "insensitive" },
     destination: { equals: params.destination, mode: "insensitive" },
+    company: { status: CompanyStatus.ACTIVE },
   };
 
   if (params.tenantId) {
@@ -23,7 +25,7 @@ export async function searchRoutes(params: {
       throw new HttpError(403, "company_inactive", "This operator is not available");
     }
     where.companyId = params.tenantId;
-  } else if (!params.admin) {
+  } else if (!params.admin && !params.passenger) {
     throw new Error("tenant_required");
   }
 

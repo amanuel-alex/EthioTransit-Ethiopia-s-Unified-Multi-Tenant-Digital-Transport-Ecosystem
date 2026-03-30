@@ -94,6 +94,22 @@
     @apply min-h-0;
   }
 
+  /** Full-bleed seat route: near-black + subtle grid (mock parity). */
+  .seat-page-canvas {
+    background-color: #050505;
+    background-image:
+      linear-gradient(
+        rgba(255, 255, 255, 0.028) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.028) 1px,
+        transparent 1px
+      );
+    background-size: 28px 28px;
+  }
+
   .hero-gradient-mesh {
     background-image: var(--hero-mesh);
   }

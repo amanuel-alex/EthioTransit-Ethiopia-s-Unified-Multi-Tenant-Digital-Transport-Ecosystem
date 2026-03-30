@@ -21,13 +21,15 @@ routesModuleRouter.get(
     try {
       const q = querySchema.parse(req.query);
       const admin = req.user?.role === UserRole.ADMIN;
-      if (!req.tenantId && !admin) {
+      const passenger = req.user?.role === UserRole.PASSENGER;
+      if (!req.tenantId && !admin && !passenger) {
         next(new HttpError(400, "tenant_required", "Missing tenant context"));
         return;
       }
       const data = await routesService.searchRoutes({
         tenantId: req.tenantId ?? null,
         admin,
+        passenger,
         origin: q.origin,
         destination: q.destination,
       });

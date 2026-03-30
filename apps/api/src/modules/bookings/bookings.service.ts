@@ -231,6 +231,19 @@ export async function listForUser(tenantId: string, userId: string) {
   });
 }
 
+/** All bookings for a passenger across operators (no x-company-id). */
+export async function listForUserAll(userId: string) {
+  return prisma.booking.findMany({
+    where: { userId },
+    include: {
+      schedule: { include: { route: true, bus: true } },
+      seats: true,
+      payments: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 export async function listForCompany(tenantId: string) {
   return prisma.booking.findMany({
     where: { companyId: tenantId },

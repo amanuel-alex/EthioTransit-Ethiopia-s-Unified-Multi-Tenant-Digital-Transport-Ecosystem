@@ -11,14 +11,14 @@ import { initiateMpesaStk } from "./services/mpesa.service.js";
 import { initiateChapaTransaction } from "./services/chapa.service.js";
 
 export async function assertBookingPayable(params: {
-  tenantId: string;
+  tenantId: string | null;
   userId: string;
   bookingId: string;
 }) {
   const booking = await prisma.booking.findFirst({
     where: {
       id: params.bookingId,
-      companyId: params.tenantId,
+      ...(params.tenantId ? { companyId: params.tenantId } : {}),
       userId: params.userId,
       status: BookingStatus.PENDING,
     },
@@ -93,7 +93,7 @@ async function getOrCreatePendingPayment(params: {
 }
 
 export async function initiateMpesaPayment(params: {
-  tenantId: string;
+  tenantId: string | null;
   userId: string;
   bookingId: string;
   phoneNumber: string;
@@ -154,7 +154,7 @@ export async function initiateMpesaPayment(params: {
 }
 
 export async function initiateChapaPayment(params: {
-  tenantId: string;
+  tenantId: string | null;
   userId: string;
   bookingId: string;
   email: string;

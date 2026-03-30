@@ -30,63 +30,74 @@ export function BookingSummaryBar({
   const unit = Number(unitPrice);
   const total = Number.isFinite(unit) ? (unit * seatCount).toFixed(0) : "—";
 
-  const chips =
-    selectedSeats.length > 0
-      ? selectedSeats.slice(0, 6).map((n) => n.toString().padStart(2, "0"))
-      : [];
+  const firstLabel =
+    selectedSeats.length > 0 ? selectedSeats[0].toString().padStart(2, "0") : null;
+  let secondLabel: string;
+  let secondHighlight = false;
+  if (selectedSeats.length === 0) {
+    secondLabel = "None";
+  } else if (selectedSeats.length === 1) {
+    secondLabel = "None";
+  } else if (selectedSeats.length === 2) {
+    secondLabel = selectedSeats[1].toString().padStart(2, "0");
+    secondHighlight = true;
+  } else {
+    secondLabel = `+${selectedSeats.length - 1} more`;
+  }
 
   return (
     <motion.div
       initial={reduce ? false : { y: 24, opacity: 0 }}
       animate={reduce ? false : { y: 0, opacity: 1 }}
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-zinc-950/95 p-4 shadow-[0_-8px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl",
+        "fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#050505]/97 p-4 shadow-[0_-12px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl",
       )}
     >
       <div className="mx-auto flex max-w-6xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-8">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
               Selected seats
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {chips.length ? (
-                chips.map((c) => (
-                  <span
-                    key={c}
-                    className="rounded-lg border border-[hsl(152,65%,48%)]/50 bg-[hsl(152,65%,48%)]/15 px-3 py-1 text-sm font-semibold tabular-nums text-[hsl(152,65%,55%)]"
-                  >
-                    {c}
-                  </span>
-                ))
-              ) : (
-                <span className="rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1 text-sm text-zinc-500">
-                  None
-                </span>
-              )}
-              {selectedSeats.length > 6 ? (
-                <span className="self-center text-xs text-zinc-500">
-                  +{selectedSeats.length - 6} more
-                </span>
-              ) : null}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm font-semibold tabular-nums",
+                  firstLabel
+                    ? "border border-[hsl(152,65%,48%)]/55 bg-[hsl(152,65%,48%)] text-zinc-950 shadow-[0_0_20px_hsla(152,65%,48%,0.35)]"
+                    : "border border-zinc-700/80 bg-zinc-800/60 text-zinc-500",
+                )}
+              >
+                {firstLabel ?? "—"}
+              </span>
+              <span
+                className={cn(
+                  "rounded-md border px-3 py-1.5 text-sm font-semibold tabular-nums",
+                  secondHighlight
+                    ? "border-[hsl(152,65%,48%)]/50 bg-[hsl(152,65%,48%)]/15 text-[hsl(152,65%,55%)]"
+                    : "border-zinc-700 bg-zinc-800/50 text-zinc-500",
+                )}
+              >
+                {secondLabel}
+              </span>
             </div>
           </div>
-          <div className="h-px w-full bg-white/10 sm:h-12 sm:w-px" />
+          <div className="hidden h-12 w-px bg-white/10 sm:block" />
           <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-              Total
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+              Total amount
             </p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-white">
+            <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-white">
               {total}{" "}
-              <span className="text-lg font-semibold text-amber-400">{currency}</span>
+              <span className="text-xl font-semibold text-zinc-200">{currency}</span>
             </p>
           </div>
         </div>
-        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
           {onCancelSelection ? (
             <button
               type="button"
-              className="text-sm font-medium text-zinc-400 underline-offset-4 transition-colors hover:text-zinc-200 hover:underline"
+              className="text-sm font-medium capitalize text-zinc-400 underline-offset-4 transition-colors hover:text-zinc-200 hover:underline disabled:opacity-40"
               onClick={onCancelSelection}
               disabled={seatCount === 0}
             >
@@ -95,11 +106,11 @@ export function BookingSummaryBar({
           ) : null}
           <Button
             size="lg"
-            className="h-12 gap-2 rounded-xl bg-[hsl(152,65%,48%)] px-8 text-base font-semibold text-zinc-950 shadow-lg shadow-[hsl(152,65%,48%)]/25 hover:bg-[hsl(152,65%,42%)]"
+            className="h-12 gap-2 rounded-xl bg-[hsl(152,65%,48%)] px-8 text-base font-semibold text-zinc-950 shadow-[0_0_28px_hsla(152,65%,48%,0.45)] hover:bg-[hsl(152,65%,42%)]"
             onClick={onContinue}
             disabled={disabled || seatCount === 0}
           >
-            {loading ? "Creating booking…" : "Proceed to payment"}
+            {loading ? "Creating booking…" : "Proceed to Payment"}
             {!loading ? <ArrowRight className="h-5 w-5" aria-hidden /> : null}
           </Button>
         </div>

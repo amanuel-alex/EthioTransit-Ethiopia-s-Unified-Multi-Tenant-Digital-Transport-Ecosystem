@@ -33,11 +33,17 @@ export function useApi() {
 
   return useMemo(
     () => ({
-      searchRoutes: (origin: string, destination: string) =>
-        apiRequest<{ data: RouteSearchRow[] }>(
-          `/api/v1/routes/search?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`,
+      searchRoutes: (origin: string, destination: string, date?: string) => {
+        const q = new URLSearchParams({
+          origin: origin.trim(),
+          destination: destination.trim(),
+        });
+        if (date?.trim()) q.set("date", date.trim());
+        return apiRequest<{ data: RouteSearchRow[] }>(
+          `/api/v1/routes/search?${q.toString()}`,
           { method: "GET", auth },
-        ),
+        );
+      },
 
       schedulesByRoute: (routeId: string, from: string, to: string) =>
         apiRequest<{ data: ScheduleDetail[] }>(

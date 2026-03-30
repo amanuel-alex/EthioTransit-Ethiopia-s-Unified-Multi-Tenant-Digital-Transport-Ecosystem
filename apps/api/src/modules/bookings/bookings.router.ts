@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { UserRole } from "@prisma/client";
 import { requireAuth, requireRoles } from "../../middleware/auth.js";
-import { requireTenant } from "../../middleware/tenant.js";
+import { pickHeaderCompany, requireTenant } from "../../middleware/tenant.js";
+import { HttpError } from "../../utils/errors.js";
+import { resolveCompanyScope } from "../../utils/tenant-resolve.js";
 import { validateBody, validateQuery } from "../../middleware/validate.js";
 import { cancelBookingSchema, createBookingSchema } from "./bookings.schemas.js";
 import * as bookingsService from "./bookings.service.js";
@@ -13,13 +15,21 @@ export const bookingsRouter = Router();
 bookingsRouter.post(
   "/create",
   requireAuth,
-  requireTenant,
   validateBody(createBookingSchema),
   async (req, res, next) => {
     try {
       const body = req.body as { scheduleId: string; seats: number[] };
+      const tenantId = await resolveCompanyScope(req, {
+        scheduleId: body.scheduleId,
+      });
+      if (!tenantId) {
+        next(
+          new HttpError(400, "tenant_required", "Could not resolve operator for this trip"),
+        );
+        return;
+      }
       const booking = await bookingsService.createBooking({
-        tenantId: req.tenantId!,
+        tenantId,
         userId: req.user!.id,
         scheduleId: body.scheduleId,
         seats: body.seats,
@@ -43,13 +53,21 @@ bookingsRouter.post(
 bookingsRouter.post(
   "/cancel",
   requireAuth,
-  requireTenant,
   validateBody(cancelBookingSchema),
   async (req, res, next) => {
     try {
       const body = req.body as { bookingId: string };
+      const tenantId = await resolveCompanyScope(req, {
+        bookingId: body.bookingId,
+      });
+      if (!tenantId) {
+        next(
+          new HttpError(400, "tenant_required", "Could not resolve operator for this booking"),
+        );
+        return;
+      }
       const out = await bookingsService.cancelBooking({
-        tenantId: req.tenantId!,
+        tenantId,
         userId: req.user!.id,
         bookingId: body.bookingId,
       });
@@ -63,13 +81,19 @@ bookingsRouter.post(
 bookingsRouter.get(
   "/user",
   requireAuth,
-  requireTenant,
   async (req, res, next) => {
     try {
-      const rows = await bookingsService.listForUser(
-        req.tenantId!,
-        req.user!.id,
-      );
+      if (req.user!.role === UserRole.PASSENGER && !pickHeaderCompany(req)) {
+        const rows = await bookingsService.listForUserAll(req.user!.id);
+        res.json({ data: rows });
+        return;
+      }
+      const tenantId = await resolveCompanyScope(req, {});
+      if (!tenantId) {
+        next(new HttpError(400, "tenant_required", "Missing tenant context"));
+        return;
+      }
+      const rows = await bookingsService.listForUser(tenantId, req.user!.id);
       res.json({ data: rows });
     } catch (e) {
       next(e);

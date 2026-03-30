@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth.js";
-import { requireTenant } from "../../middleware/tenant.js";
 import { HttpError } from "../../utils/errors.js";
+import { resolveCompanyScope } from "../../utils/tenant-resolve.js";
 import * as schedulesService from "./schedules.service.js";
 
 export const schedulesRouter = Router();
@@ -21,11 +21,23 @@ const availableQuery = z
 schedulesRouter.get(
   "/available",
   requireAuth,
-  requireTenant,
   async (req, res, next) => {
     try {
       const q = availableQuery.parse(req.query);
-      const tenantId = req.tenantId!;
+      const tenantId = await resolveCompanyScope(req, {
+        scheduleId: q.scheduleId,
+        routeId: q.routeId,
+      });
+      if (!tenantId) {
+        next(
+          new HttpError(
+            400,
+            "tenant_required",
+            "Missing operator context — sign in again or pick a trip from search.",
+          ),
+        );
+        return;
+      }
 
       if (q.scheduleId) {
         const data = await schedulesService.getAvailableForSchedule(
@@ -45,7 +57,9 @@ schedulesRouter.get(
       res.json({ data });
     } catch (e) {
       if (e instanceof z.ZodError) {
-        next(new HttpError(400, "validation_error", "Invalid query", e.flatten()));
+        next(
+          new HttpError(400, "validation_error", "Invalid query", e.flatten()),
+        );
         return;
       }
       next(e);

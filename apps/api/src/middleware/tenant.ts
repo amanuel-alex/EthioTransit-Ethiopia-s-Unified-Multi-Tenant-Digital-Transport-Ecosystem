@@ -2,17 +2,17 @@ import type { NextFunction, Request, Response } from "express";
 import { UserRole } from "@prisma/client";
 import { HttpError } from "../utils/errors.js";
 
-const HEADER = "x-company-id";
+export const TENANT_HEADER = "x-company-id";
 
-function pickHeaderCompany(req: Request): string | undefined {
-  const h = req.headers[HEADER];
+export function pickHeaderCompany(req: Request): string | undefined {
+  const h = req.headers[TENANT_HEADER];
   return typeof h === "string" ? h.trim() : undefined;
 }
 
 /**
  * Resolves tenant companyId for row-level isolation.
  * - COMPANY: JWT must include companyId.
- * - PASSENGER: require x-company-id header.
+ * - PASSENGER: optional x-company-id (null = cross-tenant where route allows it).
  * - ADMIN: optional header or query companyId (null if absent).
  */
 export function resolveTenant(req: Request, _res: Response, next: NextFunction) {
@@ -42,17 +42,7 @@ export function resolveTenant(req: Request, _res: Response, next: NextFunction) 
   }
 
   if (req.user.role === UserRole.PASSENGER) {
-    if (!headerCompany) {
-      next(
-        new HttpError(
-          400,
-          "tenant_required",
-          `Passenger requests must send ${HEADER}`,
-        ),
-      );
-      return;
-    }
-    req.tenantId = headerCompany;
+    req.tenantId = headerCompany ?? null;
     next();
     return;
   }
@@ -90,7 +80,11 @@ export function requireTenant(req: Request, _res: Response, next: NextFunction) 
   if (req.user.role === UserRole.PASSENGER) {
     if (!headerCompany) {
       next(
-        new HttpError(400, "tenant_required", `Passenger requests must send ${HEADER}`),
+        new HttpError(
+          400,
+          "tenant_required",
+          `This operation requires ${TENANT_HEADER} or is missing schedule/booking context`,
+        ),
       );
       return;
     }
@@ -106,7 +100,7 @@ export function requireTenant(req: Request, _res: Response, next: NextFunction) 
         new HttpError(
           400,
           "tenant_required",
-          `Admin scoped requests need ${HEADER} or companyId query`,
+          `Admin scoped requests need ${TENANT_HEADER} or companyId query`,
         ),
       );
       return;

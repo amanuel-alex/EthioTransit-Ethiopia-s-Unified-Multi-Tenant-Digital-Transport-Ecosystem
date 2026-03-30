@@ -5,36 +5,52 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { motion, useReducedMotion } from "framer-motion";
-import { AlertCircle } from "lucide-react";
+import { MapPin, Search } from "lucide-react";
+import { BusTripCard, type TripSearchHit } from "@/components/booking/bus-trip-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RouteResultCard } from "@/components/booking/route-result-card";
-import { ScheduleCard } from "@/components/booking/schedule-card";
 import { GlassCard } from "@/components/shared/glass-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { useApi } from "@/lib/api/hooks";
-import type { RouteSearchRow, ScheduleDetail } from "@/lib/api/types";
+import type { RouteSearchRow } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/auth-context";
 import { localDayRangeToIso } from "@/lib/date-range";
-import { getOperatorPresets } from "@/lib/operators";
-import { useTenant } from "@/lib/tenant/tenant-context";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+async function fetchTripsForRoutes(
+  api: ReturnType<typeof useApi>,
+  routeList: RouteSearchRow[],
+  day: string,
+): Promise<TripSearchHit[]> {
+  if (routeList.length === 0) return [];
+  const { from, to } = localDayRangeToIso(day);
+  const batches = await Promise.all(
+    routeList.map(async (r) => {
+      try {
+        const { data } = await api.schedulesByRoute(r.id, from, to);
+        return data.map((detail) => ({
+          detail,
+          companyName: r.company.name,
+        }));
+      } catch {
+        return [];
+      }
+    }),
+  );
+  return batches
+    .flat()
+    .sort(
+      (a, b) =>
+        new Date(a.detail.schedule.departsAt).getTime() -
+        new Date(b.detail.schedule.departsAt).getTime(),
+    );
+}
 
 function SearchPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const api = useApi();
-  const { user, logout } = useAuth();
-  const { companyId, setCompanyId } = useTenant();
-  const presets = getOperatorPresets();
+  const { logout } = useAuth();
   const reduceMotion = useReducedMotion();
 
   const [origin, setOrigin] = useState(searchParams.get("origin") ?? "");
@@ -44,36 +60,32 @@ function SearchPageInner() {
   const [date, setDate] = useState(
     searchParams.get("date") ?? new Date().toISOString().slice(0, 10),
   );
-  const [routes, setRoutes] = useState<RouteSearchRow[] | null>(null);
-  const [schedules, setSchedules] = useState<ScheduleDetail[] | null>(null);
-  const [selectedRoute, setSelectedRoute] = useState<RouteSearchRow | null>(
-    null,
-  );
+  const [trips, setTrips] = useState<TripSearchHit[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [customOp, setCustomOp] = useState("");
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  const tenantMissing = user?.role === "PASSENGER" && !companyId;
   const initialSearchDone = useRef(false);
 
+  const canSubmit = origin.trim().length > 0 && destination.trim().length > 0;
+
   const runSearch = useCallback(async () => {
-    if (!origin.trim() || !destination.trim()) {
+    if (!canSubmit) {
       toast.error("Enter origin and destination");
       return;
     }
-    if (user?.role === "PASSENGER" && !companyId) {
-      toast.error("Choose an operator first");
-      return;
-    }
+    setSearchError(null);
     setLoading(true);
-    setRoutes(null);
-    setSchedules(null);
-    setSelectedRoute(null);
+    setTrips(null);
+    setHasSearched(true);
     try {
-      const { data } = await api.searchRoutes(
+      const { data: routeList } = await api.searchRoutes(
         origin.trim(),
         destination.trim(),
+        date,
       );
-      setRoutes(data);
+      const flat = await fetchTripsForRoutes(api, routeList, date);
+      setTrips(flat);
       const q = new URLSearchParams({
         origin: origin.trim(),
         destination: destination.trim(),
@@ -88,14 +100,17 @@ function SearchPageInner() {
         router.push("/auth");
         return;
       }
-      toast.error(err.message ?? "Search failed");
+      const msg = err.message ?? "Search failed";
+      setSearchError(msg);
+      toast.error(msg);
+      setTrips(null);
     } finally {
       setLoading(false);
     }
-  }, [api, origin, destination, date, router, user?.role, companyId, logout]);
+  }, [api, origin, destination, date, router, logout, canSubmit]);
 
   useEffect(() => {
-    if (initialSearchDone.current || tenantMissing) return;
+    if (initialSearchDone.current) return;
     const o = searchParams.get("origin")?.trim();
     const d = searchParams.get("destination")?.trim();
     if (!o || !d) return;
@@ -103,15 +118,18 @@ function SearchPageInner() {
     setOrigin(o);
     setDestination(d);
     const dt = searchParams.get("date");
+    const day = dt ?? new Date().toISOString().slice(0, 10);
     if (dt) setDate(dt);
+
     void (async () => {
       setLoading(true);
-      setRoutes(null);
-      setSchedules(null);
-      setSelectedRoute(null);
+      setHasSearched(true);
+      setSearchError(null);
+      setTrips(null);
       try {
-        const { data } = await api.searchRoutes(o, d);
-        setRoutes(data);
+        const { data: routeList } = await api.searchRoutes(o, d, day);
+        const flat = await fetchTripsForRoutes(api, routeList, day);
+        setTrips(flat);
       } catch (e) {
         const err = e as Error & { status?: number };
         if (err.status === 401) {
@@ -119,129 +137,65 @@ function SearchPageInner() {
           router.push("/auth");
           return;
         }
-        toast.error(err.message ?? "Search failed");
+        const msg = err.message ?? "Search failed";
+        setSearchError(msg);
+        toast.error(msg);
       } finally {
         setLoading(false);
       }
     })();
-  }, [searchParams, tenantMissing, api, logout, router]);
-
-  const loadSchedules = async (route: RouteSearchRow) => {
-    setSelectedRoute(route);
-    setLoading(true);
-    setSchedules(null);
-    try {
-      const { from, to } = localDayRangeToIso(date);
-      const { data } = await api.schedulesByRoute(route.id, from, to);
-      setSchedules(data);
-    } catch (e) {
-      const err = e as Error & { status?: number };
-      if (err.status === 401) {
-        logout();
-        router.push("/auth");
-        return;
-      }
-      toast.error(err.message ?? "Could not load schedules");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [searchParams, api, logout, router]);
 
   const pickSchedule = (scheduleId: string) => {
     router.push(`/seat?scheduleId=${encodeURIComponent(scheduleId)}`);
   };
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl lg:max-w-5xl">
       <PageHeader
         title="Search routes"
-        description="Pick a route, then choose a departure that fits your plan."
+        description="Enter where you’re leaving from and where you’re going — we’ll show trips from all operators on your date."
       />
 
-      {tenantMissing ? (
-        <div className="mb-8 flex flex-col gap-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-6">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
-            <div>
-              <p className="font-medium">Select an operator</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Passenger searches need{" "}
-                <code className="rounded bg-muted px-1">x-company-id</code>.
-                Choose from your configured list or enter a company ID, then
-                search again from the{" "}
-                <Link href="/" className="text-primary underline">
-                  home page
-                </Link>
-                .
-              </p>
-            </div>
-          </div>
-          {presets.length > 0 ? (
-            <div className="max-w-sm space-y-2">
-              <Label>Operator</Label>
-              <Select
-                onValueChange={(v) => {
-                  setCompanyId(v);
-                  toast.success("Operator saved");
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose operator" />
-                </SelectTrigger>
-                <SelectContent>
-                  {presets.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
-          <div className="max-w-md space-y-2">
-            <Label htmlFor="cid">Company ID</Label>
-            <div className="flex gap-2">
-              <Input
-                id="cid"
-                placeholder="Paste UUID from seed / Prisma"
-                value={customOp}
-                onChange={(e) => setCustomOp(e.target.value)}
-              />
-              <Button
-                type="button"
-                onClick={() => {
-                  const v = customOp.trim();
-                  if (!v) return;
-                  setCompanyId(v);
-                  toast.success("Operator saved");
-                }}
-              >
-                Save
-              </Button>
-            </div>
-          </div>
+      {searchError ? (
+        <div
+          className="mb-6 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive dark:border-red-500/35 dark:bg-red-950/40 dark:text-red-100"
+          role="alert"
+        >
+          {searchError}{" "}
+          <button
+            type="button"
+            className="ml-1 underline underline-offset-2"
+            onClick={() => setSearchError(null)}
+          >
+            Dismiss
+          </button>
         </div>
       ) : null}
 
-      <GlassCard className="mb-8 grid gap-4 p-6 md:grid-cols-4">
-        <div className="space-y-2 md:col-span-1">
-          <Label htmlFor="o">Origin</Label>
+      <GlassCard className="mb-10 grid gap-4 p-6 shadow-lg md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
+        <div className="space-y-2">
+          <Label htmlFor="o">From</Label>
           <Input
             id="o"
+            placeholder="City or station"
             value={origin}
             onChange={(e) => setOrigin(e.target.value)}
+            autoComplete="off"
           />
         </div>
-        <div className="space-y-2 md:col-span-1">
-          <Label htmlFor="d">Destination</Label>
+        <div className="space-y-2">
+          <Label htmlFor="d">To</Label>
           <Input
             id="d"
+            placeholder="City or station"
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
+            autoComplete="off"
           />
         </div>
-        <div className="space-y-2 md:col-span-1">
-          <Label htmlFor="dt">Date</Label>
+        <div className="space-y-2">
+          <Label htmlFor="dt">Travel date</Label>
           <Input
             id="dt"
             type="date"
@@ -249,125 +203,88 @@ function SearchPageInner() {
             onChange={(e) => setDate(e.target.value)}
           />
         </div>
-        <div className="flex items-end">
+        <div className="flex md:pb-0.5">
           <Button
             type="button"
-            className="w-full"
-            disabled={loading || !!tenantMissing}
+            className="h-11 w-full gap-2 rounded-xl md:min-w-[8rem]"
+            disabled={loading || !canSubmit}
             onClick={() => void runSearch()}
           >
+            <Search className="h-4 w-4" aria-hidden />
             {loading ? "Searching…" : "Search"}
           </Button>
         </div>
       </GlassCard>
 
-      {loading && !routes && !schedules ? (
-        <div className="space-y-4">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-xl bg-white/5" />
+      {loading ? (
+        <div className="space-y-4" aria-busy="true" aria-label="Loading results">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Skeleton
+              key={i}
+              className="h-36 w-full rounded-xl bg-muted/60 dark:bg-white/10"
+            />
           ))}
         </div>
       ) : null}
 
-      {selectedRoute && loading && !schedules ? (
-        <div className="space-y-4">
-          <Skeleton className="h-8 w-64 rounded-md bg-white/5" />
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-32 w-full rounded-xl bg-white/5" />
-          ))}
-        </div>
-      ) : null}
-
-      {routes && !selectedRoute ? (
+      {!loading && hasSearched && trips && trips.length === 0 ? (
         <motion.div
-          className="space-y-4"
-          initial="hidden"
-          animate="show"
-          variants={{
-            hidden: {},
-            show: {
-              transition: {
-                staggerChildren: reduceMotion ? 0 : 0.06,
-              },
-            },
-          }}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={reduceMotion ? false : { opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-muted-foreground/25 bg-muted/30 px-8 py-16 text-center dark:border-white/10 dark:bg-white/5"
         >
-          <h2 className="text-lg font-semibold">Routes</h2>
-          {routes.length === 0 ? (
-            <p className="text-muted-foreground">No routes found.</p>
-          ) : (
-            routes.map((r) => (
+          <MapPin className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden />
+          <p className="text-lg font-semibold text-foreground">
+            No buses found
+          </p>
+          <p className="mt-2 max-w-md text-sm text-muted-foreground">
+            Try another date, check spelling, or different cities. Operators add
+            new schedules often — you can also{" "}
+            <Link href="/home" className="font-medium text-primary underline">
+              go home
+            </Link>{" "}
+            and start again.
+          </p>
+        </motion.div>
+      ) : null}
+
+      {!loading && trips && trips.length > 0 ? (
+        <section aria-label="Trip results">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold tracking-tight">
+              {trips.length} trip{trips.length === 1 ? "" : "s"} · sorted by departure
+            </h2>
+          </div>
+          <motion.div
+            className="space-y-4"
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: {},
+              show: {
+                transition: {
+                  staggerChildren: reduceMotion ? 0 : 0.05,
+                },
+              },
+            }}
+          >
+            {trips.map((trip) => (
               <motion.div
-                key={r.id}
+                key={trip.detail.schedule.id}
                 variants={{
-                  hidden: { opacity: 0, y: 10 },
+                  hidden: { opacity: 0, y: 12 },
                   show: {
                     opacity: 1,
                     y: 0,
-                    transition: { type: "spring", stiffness: 380, damping: 28 },
+                    transition: { type: "spring", stiffness: 380, damping: 30 },
                   },
                 }}
               >
-                <RouteResultCard
-                  route={r}
-                  onSelect={() => void loadSchedules(r)}
-                />
+                <BusTripCard trip={trip} onSelectSeat={pickSchedule} />
               </motion.div>
-            ))
-          )}
-        </motion.div>
-      ) : null}
-
-      {selectedRoute && schedules ? (
-        <motion.div
-          className="space-y-4"
-          initial="hidden"
-          animate="show"
-          variants={{
-            hidden: {},
-            show: {
-              transition: { staggerChildren: reduceMotion ? 0 : 0.055 },
-            },
-          }}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">
-              Schedules — {selectedRoute.origin} → {selectedRoute.destination}
-            </h2>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedRoute(null);
-                setSchedules(null);
-              }}
-            >
-              Back to routes
-            </Button>
-          </div>
-          {schedules.length === 0 ? (
-            <p className="text-muted-foreground">No departures that day.</p>
-          ) : (
-            <div className="space-y-4">
-              {schedules.map((s) => (
-                <motion.div
-                  key={s.schedule.id}
-                  variants={{
-                    hidden: { opacity: 0, y: 12 },
-                    show: {
-                      opacity: 1,
-                      y: 0,
-                      transition: { type: "spring", stiffness: 400, damping: 28 },
-                    },
-                  }}
-                >
-                  <ScheduleCard detail={s} onSelect={pickSchedule} />
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </motion.div>
+            ))}
+          </motion.div>
+        </section>
       ) : null}
     </div>
   );
@@ -377,9 +294,9 @@ export default function SearchPage() {
   return (
     <Suspense
       fallback={
-        <div className="space-y-4">
+        <div className="mx-auto max-w-3xl space-y-4">
           <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-48 w-full rounded-xl" />
         </div>
       }
     >
