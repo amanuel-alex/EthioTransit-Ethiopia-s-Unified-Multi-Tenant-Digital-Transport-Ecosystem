@@ -1,18 +1,27 @@
 import type { Prisma } from "@prisma/client";
 import { CompanyStatus } from "@prisma/client";
+import { routeWithStationsInclude } from "../../db/route-include.js";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../utils/errors.js";
 
-export async function searchRoutes(params: {
+function trimCity(s: string) {
+  return s.trim();
+}
+
+export type SearchRoutesParams = {
   tenantId: string | null;
   admin: boolean;
   passenger: boolean;
-  origin: string;
-  destination: string;
-}) {
-  const where: Prisma.RouteWhereInput = {
-    origin: { equals: params.origin, mode: "insensitive" },
-    destination: { equals: params.destination, mode: "insensitive" },
+  origin?: string;
+  destination?: string;
+  originCity?: string;
+  destinationCity?: string;
+  originStationId?: string;
+  destinationStationId?: string;
+};
+
+export async function searchRoutes(params: SearchRoutesParams) {
+  const base: Prisma.RouteWhereInput = {
     company: { status: CompanyStatus.ACTIVE },
   };
 
@@ -24,14 +33,67 @@ export async function searchRoutes(params: {
     if (!company || company.status !== CompanyStatus.ACTIVE) {
       throw new HttpError(403, "company_inactive", "This operator is not available");
     }
-    where.companyId = params.tenantId;
+    base.companyId = params.tenantId;
   } else if (!params.admin && !params.passenger) {
     throw new Error("tenant_required");
   }
 
+  let where: Prisma.RouteWhereInput;
+
+  if (params.originStationId && params.destinationStationId) {
+    where = {
+      ...base,
+      originStationId: params.originStationId,
+      destinationStationId: params.destinationStationId,
+    };
+  } else {
+    const o = trimCity(params.originCity ?? params.origin ?? "");
+    const d = trimCity(params.destinationCity ?? params.destination ?? "");
+    if (!o || !d) {
+      throw new HttpError(
+        400,
+        "validation_error",
+        "Provide origin and destination (city names) or both station ids",
+      );
+    }
+
+    where = {
+      ...base,
+      OR: [
+        {
+          AND: [
+            {
+              originStation: {
+                is: {
+                  city: { name: { equals: o, mode: "insensitive" } },
+                },
+              },
+            },
+            {
+              destinationStation: {
+                is: {
+                  city: { name: { equals: d, mode: "insensitive" } },
+                },
+              },
+            },
+          ],
+        },
+        {
+          AND: [
+            { origin: { equals: o, mode: "insensitive" } },
+            { destination: { equals: d, mode: "insensitive" } },
+          ],
+        },
+      ],
+    };
+  }
+
   return prisma.route.findMany({
     where,
-    include: { company: { select: { id: true, name: true, slug: true } } },
+    include: {
+      company: { select: { id: true, name: true, slug: true } },
+      ...routeWithStationsInclude,
+    },
     orderBy: { createdAt: "desc" },
   });
 }

@@ -79,8 +79,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
             bookingId: res.id,
             totalAmount: res.totalAmount,
             currency: res.currency,
-            routeLabel:
-                '${widget.trip.detail.schedule.route.origin} → ${widget.trip.detail.schedule.route.destination}',
+            routeLabel: widget.trip.detail.schedule.route.routeLine,
             departsAt: widget.trip.detail.schedule.departsAt,
             seatNumbers: res.seats,
           ),
@@ -142,7 +141,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${s.route.origin} → ${s.route.destination}',
+                  s.route.routeLine,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 Text(

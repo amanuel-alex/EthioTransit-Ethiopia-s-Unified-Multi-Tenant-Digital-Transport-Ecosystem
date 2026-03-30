@@ -33,17 +33,57 @@ export function useApi() {
 
   return useMemo(
     () => ({
-      searchRoutes: (origin: string, destination: string, date?: string) => {
+      searchRoutes: (
+        origin: string,
+        destination: string,
+        date?: string,
+        stationFilter?: {
+          originStationId?: string;
+          destinationStationId?: string;
+        },
+      ) => {
         const q = new URLSearchParams({
           origin: origin.trim(),
           destination: destination.trim(),
         });
         if (date?.trim()) q.set("date", date.trim());
+        if (stationFilter?.originStationId) {
+          q.set("originStationId", stationFilter.originStationId);
+        }
+        if (stationFilter?.destinationStationId) {
+          q.set("destinationStationId", stationFilter.destinationStationId);
+        }
         return apiRequest<{ data: RouteSearchRow[] }>(
           `/api/v1/routes/search?${q.toString()}`,
           { method: "GET", auth },
         );
       },
+
+      listCities: () =>
+        apiRequest<{
+          data: {
+            id: string;
+            name: string;
+            slug: string;
+            _count: { stations: number };
+          }[];
+        }>("/api/v1/locations/cities", { method: "GET", auth }),
+
+      listStations: (cityId: string) =>
+        apiRequest<{
+          data: {
+            city: { id: string; name: string; slug: string };
+            stations: {
+              id: string;
+              name: string;
+              address: string | null;
+              city: { id: string; name: string; slug: string };
+            }[];
+          };
+        }>(`/api/v1/locations/stations?cityId=${encodeURIComponent(cityId)}`, {
+          method: "GET",
+          auth,
+        }),
 
       upcomingTrips: (limit = 8) =>
         apiRequest<{ data: { detail: ScheduleDetail; companyName: string }[] }>(

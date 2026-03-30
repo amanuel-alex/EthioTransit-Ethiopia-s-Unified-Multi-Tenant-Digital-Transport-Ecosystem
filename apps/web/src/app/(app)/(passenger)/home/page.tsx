@@ -14,6 +14,7 @@ import { useApi } from "@/lib/api/hooks";
 import type { BookingRow } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/auth-context";
 import { saveCheckoutDraft } from "@/lib/booking/checkout-storage";
+import { routeLineLabel } from "@/lib/route-label";
 
 function fmtMoney(v: unknown) {
   if (v === null || v === undefined) return "—";
@@ -248,7 +249,7 @@ export default function HomePage() {
                               currency: b.currency,
                               scheduleId: b.schedule.id,
                               seatNumbers: b.seats.map((s) => s.seatNo),
-                              routeLabel: `${b.schedule.route.origin} → ${b.schedule.route.destination}`,
+                              routeLabel: routeLineLabel(b.schedule.route),
                               departsAt: b.schedule.departsAt,
                             });
                             router.push("/checkout");

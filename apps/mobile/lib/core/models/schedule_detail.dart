@@ -1,3 +1,6 @@
+import 'route_labels.dart';
+import 'station_ref.dart';
+
 class BusInfo {
   const BusInfo({
     required this.id,
@@ -23,17 +26,37 @@ class RouteInfo {
     required this.id,
     required this.origin,
     required this.destination,
+    this.originStation,
+    this.destinationStation,
   });
 
   final String id;
   final String origin;
   final String destination;
+  final StationRef? originStation;
+  final StationRef? destinationStation;
+
+  String get routeShort => RouteLabels.short(
+        originCity: origin,
+        destinationCity: destination,
+        originStation: originStation,
+        destinationStation: destinationStation,
+      );
+
+  String get routeLine => RouteLabels.line(
+        originCity: origin,
+        destinationCity: destination,
+        originStation: originStation,
+        destinationStation: destinationStation,
+      );
 
   factory RouteInfo.fromJson(Map<String, dynamic> j) {
     return RouteInfo(
       id: j['id'] as String,
       origin: j['origin'] as String,
       destination: j['destination'] as String,
+      originStation: StationRef.maybeFrom(j['originStation']),
+      destinationStation: StationRef.maybeFrom(j['destinationStation']),
     );
   }
 }

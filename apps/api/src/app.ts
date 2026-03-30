@@ -13,6 +13,7 @@ import {
 import { handlePaymentsWebhook } from "./modules/payments/webhook.handler.js";
 import { healthRouter } from "./modules/health/health.router.js";
 import { authRouter } from "./modules/auth/auth.router.js";
+import { locationsRouter } from "./modules/locations/locations.router.js";
 import { routesModuleRouter } from "./modules/routes/routes.router.js";
 import { schedulesRouter } from "./modules/schedules/schedules.router.js";
 import { bookingsRouter } from "./modules/bookings/bookings.router.js";
@@ -81,6 +82,7 @@ export function createApp() {
   app.use(API_PREFIX, healthRouter);
   app.use(`${API_PREFIX}/auth`, authRateLimiter, authRouter);
   app.use(`${API_PREFIX}/routes`, routesModuleRouter);
+  app.use(`${API_PREFIX}/locations`, locationsRouter);
   app.use(`${API_PREFIX}/schedules`, schedulesRouter);
   app.use(`${API_PREFIX}/bookings`, bookingsRouter);
   app.use(`${API_PREFIX}/payments`, paymentsRouter);

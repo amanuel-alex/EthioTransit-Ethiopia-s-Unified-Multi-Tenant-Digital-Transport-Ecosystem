@@ -20,6 +20,12 @@ export type RefreshResponse = {
   expiresIn: number;
 };
 
+export type StationRef = {
+  id: string;
+  name: string;
+  city?: { id: string; name: string; slug: string };
+};
+
 export type RouteSearchRow = {
   id: string;
   origin: string;
@@ -27,6 +33,8 @@ export type RouteSearchRow = {
   distanceKm: number;
   companyId: string;
   company: { id: string; name: string; slug: string | null };
+  originStation?: StationRef | null;
+  destinationStation?: StationRef | null;
 };
 
 export type ScheduleDetail = {
@@ -41,6 +49,8 @@ export type ScheduleDetail = {
       destination: string;
       distanceKm: number;
       companyId: string;
+      originStation?: StationRef | null;
+      destinationStation?: StationRef | null;
     };
     bus: { id: string; plateNumber: string; seatCapacity: number };
   };
@@ -70,7 +80,12 @@ export type BookingRow = {
     id: string;
     departsAt: string;
     arrivesAt: string;
-    route: { origin: string; destination: string };
+    route: {
+      origin: string;
+      destination: string;
+      originStation?: StationRef | null;
+      destinationStation?: StationRef | null;
+    };
     bus: { plateNumber: string };
   };
   seats: { seatNo: number }[];

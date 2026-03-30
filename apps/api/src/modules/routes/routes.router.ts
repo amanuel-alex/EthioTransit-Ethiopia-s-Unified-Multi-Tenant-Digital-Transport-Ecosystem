@@ -6,12 +6,27 @@ import { UserRole } from "@prisma/client";
 import { HttpError } from "../../utils/errors.js";
 import * as routesService from "./routes.service.js";
 
-const querySchema = z.object({
-  origin: z.string().min(1),
-  destination: z.string().min(1),
-  /** Accepted for client parity; schedule filtering happens on `/schedules/available`. */
-  date: z.string().optional(),
-});
+const searchQuerySchema = z
+  .object({
+    origin: z.string().optional(),
+    destination: z.string().optional(),
+    originCity: z.string().optional(),
+    destinationCity: z.string().optional(),
+    originStationId: z.string().optional(),
+    destinationStationId: z.string().optional(),
+    /** Accepted for client parity; schedule filtering happens on `/schedules/available`. */
+    date: z.string().optional(),
+  })
+  .refine(
+    (q) =>
+      (q.originStationId && q.destinationStationId) ||
+      ((q.originCity?.trim() || q.origin?.trim()) &&
+        (q.destinationCity?.trim() || q.destination?.trim())),
+    {
+      message:
+        "Provide origin+destination (city names) or originStationId+destinationStationId",
+    },
+  );
 
 export const routesModuleRouter = Router();
 
@@ -21,7 +36,7 @@ routesModuleRouter.get(
   resolveTenant,
   async (req, res, next) => {
     try {
-      const q = querySchema.parse(req.query);
+      const q = searchQuerySchema.parse(req.query);
       const admin = req.user?.role === UserRole.ADMIN;
       const passenger = req.user?.role === UserRole.PASSENGER;
       if (!req.tenantId && !admin && !passenger) {
@@ -34,11 +49,17 @@ routesModuleRouter.get(
         passenger,
         origin: q.origin,
         destination: q.destination,
+        originCity: q.originCity,
+        destinationCity: q.destinationCity,
+        originStationId: q.originStationId,
+        destinationStationId: q.destinationStationId,
       });
       res.json({ data });
     } catch (e) {
       if (e instanceof z.ZodError) {
-        next(new HttpError(400, "validation_error", "Invalid query", e.flatten()));
+        next(
+          new HttpError(400, "validation_error", "Invalid query", e.flatten()),
+        );
         return;
       }
       if (e instanceof Error && e.message === "tenant_required") {

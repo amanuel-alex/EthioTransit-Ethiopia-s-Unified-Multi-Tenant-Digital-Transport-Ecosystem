@@ -1,3 +1,6 @@
+import 'route_labels.dart';
+import 'station_ref.dart';
+
 class BookingRow {
   const BookingRow({
     required this.id,
@@ -38,6 +41,8 @@ class BookingRow {
         origin: route['origin'] as String,
         destination: route['destination'] as String,
         plate: bus['plateNumber'] as String? ?? '',
+        originStation: StationRef.maybeFrom(route['originStation']),
+        destinationStation: StationRef.maybeFrom(route['destinationStation']),
       ),
       seats: seatList.map((e) => (e as Map)['seatNo'] as int).toList(),
     );
@@ -52,6 +57,8 @@ class BookingSchedule {
     required this.origin,
     required this.destination,
     required this.plate,
+    this.originStation,
+    this.destinationStation,
   });
 
   final String id;
@@ -60,8 +67,15 @@ class BookingSchedule {
   final String origin;
   final String destination;
   final String plate;
+  final StationRef? originStation;
+  final StationRef? destinationStation;
 
-  String get routeLabel => '$origin → $destination';
+  String get routeLabel => RouteLabels.line(
+        originCity: origin,
+        destinationCity: destination,
+        originStation: originStation,
+        destinationStation: destinationStation,
+      );
 }
 
 class CreateBookingResult {

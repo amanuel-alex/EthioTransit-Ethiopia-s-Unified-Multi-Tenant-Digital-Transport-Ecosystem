@@ -16,7 +16,77 @@ if (process.env.NODE_ENV !== "production" && !existsSync(join(apiRoot, ".env")))
 
 const prisma = new PrismaClient();
 
+const CITY_CATALOG: { slug: string; name: string; stations: string[] }[] = [
+  {
+    slug: "addis-ababa",
+    name: "Addis Ababa",
+    stations: [
+      "Meskel Square Terminal",
+      "Kaliti Bus Station",
+      "Lamberet Bus Station",
+      "Autobus Terra",
+    ],
+  },
+  { slug: "hawassa", name: "Hawassa", stations: ["Hawassa Main Bus Terminal", "Hawassa City Bus Stop"] },
+  { slug: "bahir-dar", name: "Bahir Dar", stations: ["Bahir Dar Central Station"] },
+  { slug: "dire-dawa", name: "Dire Dawa", stations: ["Dire Dawa Bus Terminal"] },
+  { slug: "gondar", name: "Gondar", stations: ["Gondar Bus Station"] },
+  { slug: "mekelle", name: "Mekelle", stations: ["Mekelle Intercity Terminal"] },
+];
+
+async function upsertCityCatalog() {
+  for (const c of CITY_CATALOG) {
+    const city = await prisma.city.upsert({
+      where: { slug: c.slug },
+      update: { name: c.name },
+      create: { slug: c.slug, name: c.name, countryCode: "ET" },
+    });
+    for (const stationName of c.stations) {
+      await prisma.busStation.upsert({
+        where: {
+          cityId_name: { cityId: city.id, name: stationName },
+        },
+        update: {},
+        create: { cityId: city.id, name: stationName },
+      });
+    }
+  }
+}
+
+async function backfillRouteStations() {
+  const routes = await prisma.route.findMany({
+    where: {
+      OR: [{ originStationId: null }, { destinationStationId: null }],
+    },
+  });
+  for (const r of routes) {
+    const oCity = await prisma.city.findFirst({
+      where: { name: { equals: r.origin, mode: "insensitive" } },
+    });
+    const dCity = await prisma.city.findFirst({
+      where: { name: { equals: r.destination, mode: "insensitive" } },
+    });
+    if (!oCity || !dCity) continue;
+    const oSt = await prisma.busStation.findFirst({
+      where: { cityId: oCity.id },
+      orderBy: { name: "asc" },
+    });
+    const dSt = await prisma.busStation.findFirst({
+      where: { cityId: dCity.id },
+      orderBy: { name: "asc" },
+    });
+    if (oSt && dSt) {
+      await prisma.route.update({
+        where: { id: r.id },
+        data: { originStationId: oSt.id, destinationStationId: dSt.id },
+      });
+    }
+  }
+}
+
 async function main() {
+  await upsertCityCatalog();
+
   const company = await prisma.company.upsert({
     where: { slug: "addis-bus" },
     update: {},
@@ -71,14 +141,37 @@ async function main() {
     },
   });
 
+  const addisCity = await prisma.city.findUniqueOrThrow({
+    where: { slug: "addis-ababa" },
+  });
+  const hawassaCity = await prisma.city.findUniqueOrThrow({
+    where: { slug: "hawassa" },
+  });
+  const originSt = await prisma.busStation.findFirstOrThrow({
+    where: { cityId: addisCity.id },
+    orderBy: { name: "asc" },
+  });
+  const destSt = await prisma.busStation.findFirstOrThrow({
+    where: { cityId: hawassaCity.id },
+    orderBy: { name: "asc" },
+  });
+
   const route = await prisma.route.upsert({
     where: { id: "seed_route_addis_hawassa" },
-    update: { pricePerKm: 1.64 },
+    update: {
+      pricePerKm: 1.64,
+      origin: addisCity.name,
+      destination: hawassaCity.name,
+      originStationId: originSt.id,
+      destinationStationId: destSt.id,
+    },
     create: {
       id: "seed_route_addis_hawassa",
       companyId: company.id,
-      origin: "Addis Ababa",
-      destination: "Hawassa",
+      origin: addisCity.name,
+      destination: hawassaCity.name,
+      originStationId: originSt.id,
+      destinationStationId: destSt.id,
       distanceKm: 275,
       pricePerKm: 1.64,
     },
@@ -104,7 +197,11 @@ async function main() {
     },
   });
 
-  console.log("Seed OK: company", company.slug, "users +251900000001 (admin), +251900000002 (company), +251900000003 (passenger)");
+  await backfillRouteStations();
+
+  console.log(
+    "Seed OK: company city catalog + stations; users +251900000001 (admin), +251900000002 (company), +251900000003 (passenger)",
+  );
 }
 
 main()

@@ -3,6 +3,7 @@ import {
   CompanyStatus,
   Prisma,
 } from "@prisma/client";
+import { routeWithStationsInclude } from "../../db/route-include.js";
 import { prisma } from "../../db/prisma.js";
 import { loadEnv } from "../../config/env.js";
 import { HttpError } from "../../utils/errors.js";
@@ -223,7 +224,9 @@ export async function listForUser(tenantId: string, userId: string) {
   return prisma.booking.findMany({
     where: { companyId: tenantId, userId },
     include: {
-      schedule: { include: { route: true, bus: true } },
+      schedule: {
+        include: { route: { include: routeWithStationsInclude }, bus: true },
+      },
       seats: true,
       payments: true,
     },
@@ -236,7 +239,9 @@ export async function listForUserAll(userId: string) {
   return prisma.booking.findMany({
     where: { userId },
     include: {
-      schedule: { include: { route: true, bus: true } },
+      schedule: {
+        include: { route: { include: routeWithStationsInclude }, bus: true },
+      },
       seats: true,
       payments: true,
     },
@@ -249,7 +254,9 @@ export async function listForCompany(tenantId: string) {
     where: { companyId: tenantId },
     include: {
       user: { select: { id: true, phone: true } },
-      schedule: { include: { route: true, bus: true } },
+      schedule: {
+        include: { route: { include: routeWithStationsInclude }, bus: true },
+      },
       seats: true,
       payments: true,
     },
@@ -282,7 +289,9 @@ export async function listForCompanyFiltered(
     where,
     include: {
       user: { select: { id: true, phone: true } },
-      schedule: { include: { route: true, bus: true } },
+      schedule: {
+        include: { route: { include: routeWithStationsInclude }, bus: true },
+      },
       seats: true,
       payments: true,
     },
@@ -314,7 +323,9 @@ export async function listAllBookingsAdmin(params: {
       include: {
         user: { select: { id: true, phone: true } },
         company: { select: { id: true, name: true, slug: true } },
-        schedule: { include: { route: true, bus: true } },
+        schedule: {
+        include: { route: { include: routeWithStationsInclude }, bus: true },
+      },
         seats: true,
         payments: true,
       },

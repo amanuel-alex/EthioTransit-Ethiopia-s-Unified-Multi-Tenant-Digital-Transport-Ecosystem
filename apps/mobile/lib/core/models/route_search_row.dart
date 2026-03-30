@@ -1,15 +1,29 @@
+import 'route_labels.dart';
+import 'station_ref.dart';
+
 class RouteSearchRow {
   const RouteSearchRow({
     required this.id,
     required this.origin,
     required this.destination,
     required this.companyName,
+    this.originStation,
+    this.destinationStation,
   });
 
   final String id;
   final String origin;
   final String destination;
   final String companyName;
+  final StationRef? originStation;
+  final StationRef? destinationStation;
+
+  String get routeShort => RouteLabels.short(
+        originCity: origin,
+        destinationCity: destination,
+        originStation: originStation,
+        destinationStation: destinationStation,
+      );
 
   factory RouteSearchRow.fromJson(Map<String, dynamic> j) {
     final company = j['company'] as Map<String, dynamic>?;
@@ -18,6 +32,8 @@ class RouteSearchRow {
       origin: j['origin'] as String,
       destination: j['destination'] as String,
       companyName: company?['name'] as String? ?? 'Operator',
+      originStation: StationRef.maybeFrom(j['originStation']),
+      destinationStation: StationRef.maybeFrom(j['destinationStation']),
     );
   }
 }

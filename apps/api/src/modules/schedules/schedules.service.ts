@@ -1,4 +1,5 @@
 import { BookingStatus, CompanyStatus } from "@prisma/client";
+import { routeWithStationsInclude } from "../../db/route-include.js";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../utils/errors.js";
 
@@ -22,7 +23,7 @@ export async function getAvailableForSchedule(tenantId: string, scheduleId: stri
     where: { id: scheduleId, companyId: tenantId },
     include: {
       bus: true,
-      route: true,
+      route: { include: routeWithStationsInclude },
       seatLocks: true,
       bookings: {
         where: { status: BookingStatus.PAID },
@@ -81,7 +82,7 @@ export async function listAvailableByRoute(
       routeId,
       departsAt: { gte: from, lte: to },
     },
-    include: { bus: true, route: true },
+    include: { bus: true, route: { include: routeWithStationsInclude } },
     orderBy: { departsAt: "asc" },
   });
 

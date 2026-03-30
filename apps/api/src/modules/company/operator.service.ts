@@ -1,5 +1,6 @@
 import { BookingStatus, Prisma } from "@prisma/client";
 import type { z } from "zod";
+import { routeWithStationsInclude } from "../../db/route-include.js";
 import { prisma } from "../../db/prisma.js";
 import { HttpError } from "../../utils/errors.js";
 import {
@@ -116,19 +117,46 @@ export async function listRoutes(companyId: string) {
   return prisma.route.findMany({
     where: { companyId },
     orderBy: [{ origin: "asc" }, { destination: "asc" }],
+    include: routeWithStationsInclude,
   });
 }
 
 export async function createRoute(companyId: string, data: CreateRoute) {
+  const [originSt, destSt] = await Promise.all([
+    prisma.busStation.findUnique({
+      where: { id: data.originStationId },
+      include: { city: true },
+    }),
+    prisma.busStation.findUnique({
+      where: { id: data.destinationStationId },
+      include: { city: true },
+    }),
+  ]);
+
+  if (!originSt || !destSt) {
+    throw new HttpError(400, "invalid_stations", "Invalid origin or destination station");
+  }
+
+  if (originSt.cityId === destSt.cityId) {
+    throw new HttpError(
+      400,
+      "same_city_route",
+      "Origin and destination stations must be in different cities",
+    );
+  }
+
   return prisma.route.create({
     data: {
       companyId,
-      origin: data.origin.trim(),
-      destination: data.destination.trim(),
+      origin: originSt.city.name,
+      destination: destSt.city.name,
+      originStationId: originSt.id,
+      destinationStationId: destSt.id,
       distanceKm: dec(data.distanceKm),
       pricePerKm:
         data.pricePerKm != null ? dec(data.pricePerKm) : null,
     },
+    include: routeWithStationsInclude,
   });
 }
 
@@ -142,13 +170,62 @@ export async function updateRoute(
   });
   if (!existing) throw new HttpError(404, "not_found", "Route not found");
 
+  let origin = existing.origin;
+  let destination = existing.destination;
+  let originStationId = existing.originStationId;
+  let destinationStationId = existing.destinationStationId;
+
+  if (data.originStationId !== undefined) {
+    const st = await prisma.busStation.findUnique({
+      where: { id: data.originStationId },
+      include: { city: true },
+    });
+    if (!st) {
+      throw new HttpError(400, "invalid_stations", "Invalid origin station");
+    }
+    originStationId = st.id;
+    origin = st.city.name;
+  }
+
+  if (data.destinationStationId !== undefined) {
+    const st = await prisma.busStation.findUnique({
+      where: { id: data.destinationStationId },
+      include: { city: true },
+    });
+    if (!st) {
+      throw new HttpError(400, "invalid_stations", "Invalid destination station");
+    }
+    destinationStationId = st.id;
+    destination = st.city.name;
+  }
+
+  if (originStationId && destinationStationId) {
+    const [a, b] = await Promise.all([
+      prisma.busStation.findUnique({
+        where: { id: originStationId },
+        select: { cityId: true },
+      }),
+      prisma.busStation.findUnique({
+        where: { id: destinationStationId },
+        select: { cityId: true },
+      }),
+    ]);
+    if (a && b && a.cityId === b.cityId) {
+      throw new HttpError(
+        400,
+        "same_city_route",
+        "Origin and destination stations must be in different cities",
+      );
+    }
+  }
+
   return prisma.route.update({
     where: { id: routeId },
     data: {
-      ...(data.origin !== undefined ? { origin: data.origin.trim() } : {}),
-      ...(data.destination !== undefined
-        ? { destination: data.destination.trim() }
-        : {}),
+      origin,
+      destination,
+      originStationId,
+      destinationStationId,
       ...(data.distanceKm !== undefined
         ? { distanceKm: dec(data.distanceKm) }
         : {}),
@@ -159,6 +236,7 @@ export async function updateRoute(
           }
         : {}),
     },
+    include: routeWithStationsInclude,
   });
 }
 
@@ -197,7 +275,7 @@ export async function listSchedules(
   return prisma.schedule.findMany({
     where,
     orderBy: { departsAt: "asc" },
-    include: { route: true, bus: true },
+    include: { route: { include: routeWithStationsInclude }, bus: true },
   });
 }
 
@@ -224,7 +302,7 @@ export async function createSchedule(companyId: string, data: CreateSchedule) {
       arrivesAt,
       basePrice: dec(data.basePrice),
     },
-    include: { route: true, bus: true },
+    include: { route: { include: routeWithStationsInclude }, bus: true },
   });
 }
 
@@ -271,7 +349,7 @@ export async function updateSchedule(
       ...(arrivesAt !== undefined ? { arrivesAt } : {}),
       ...(data.basePrice !== undefined ? { basePrice: dec(data.basePrice) } : {}),
     },
-    include: { route: true, bus: true },
+    include: { route: { include: routeWithStationsInclude }, bus: true },
   });
 }
 

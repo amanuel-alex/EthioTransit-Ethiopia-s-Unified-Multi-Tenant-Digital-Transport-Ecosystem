@@ -43,6 +43,35 @@ enum BusStatus {
   INACTIVE
 }
 
+model City {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  countryCode String       @default("ET")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  stations BusStation[]
+}
+
+model BusStation {
+  id        String   @id @default(cuid())
+  cityId    String
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  name      String
+  address   String?
+  lat       Decimal? @db.Decimal(10, 7)
+  lng       Decimal? @db.Decimal(10, 7)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  routesOriginating  Route[] @relation("RouteOrigin")
+  routesTerminating  Route[] @relation("RouteDestination")
+
+  @@unique([cityId, name])
+  @@index([cityId])
+}
+
 model Company {
   id        String        @id @default(cuid())
   name      String
@@ -107,20 +136,26 @@ model Bus {
 }
 
 model Route {
-  id          String   @id @default(cuid())
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  origin      String
-  destination String
-  distanceKm  Decimal  @db.Decimal(12, 2)
+  id                   String      @id @default(cuid())
+  companyId            String
+  company              Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// Denormalized city labels (kept in sync with station cities for search + analytics).
+  origin               String
+  destination          String
+  originStationId      String?
+  destinationStationId String?
+  originStation        BusStation? @relation("RouteOrigin", fields: [originStationId], references: [id], onDelete: SetNull)
+  destinationStation   BusStation? @relation("RouteDestination", fields: [destinationStationId], references: [id], onDelete: SetNull)
+  distanceKm           Decimal     @db.Decimal(12, 2)
   /// Suggested fare per km; schedules still store concrete basePrice.
-  pricePerKm  Decimal? @db.Decimal(12, 4)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  pricePerKm           Decimal?    @db.Decimal(12, 4)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
 
   schedules Schedule[]
 
   @@index([companyId, origin, destination])
+  @@index([companyId, originStationId, destinationStationId])
 }
 
 model Driver {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../constants/popular_routes.dart';
+import '../../core/models/location_models.dart';
 import '../../core/models/schedule_detail.dart';
 import '../../data/api_exception.dart';
 import '../../data/ethiotransit_repository.dart';
@@ -25,25 +26,113 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final _from = TextEditingController(text: 'Addis Ababa');
-  final _to = TextEditingController(text: 'Hawassa');
+  List<CityListItem> _cities = [];
+  bool _citiesLoading = true;
+  String? _originCityId;
+  String? _destCityId;
+  String? _originStationId;
+  String? _destStationId;
+  List<StationListItem> _originStations = [];
+  List<StationListItem> _destStations = [];
   DateTime _date = DateTime.now().add(const Duration(days: 1));
 
   @override
-  void dispose() {
-    _from.dispose();
-    _to.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    Future<void>.microtask(_loadCities);
+  }
+
+  CityListItem? _cityByName(String name) {
+    final n = name.toLowerCase();
+    for (final c in _cities) {
+      if (c.name.toLowerCase() == n) return c;
+    }
+    return null;
+  }
+
+  String? _cityName(String? id) {
+    if (id == null) return null;
+    for (final c in _cities) {
+      if (c.id == id) return c.name;
+    }
+    return null;
+  }
+
+  void _applyDefaultCities() {
+    final o = _cityByName('Addis Ababa');
+    final d = _cityByName('Hawassa');
+    if (o != null) _originCityId = o.id;
+    if (d != null) _destCityId = d.id;
+    if (_originCityId != null &&
+        _destCityId != null &&
+        _originCityId == _destCityId &&
+        _cities.length >= 2) {
+      _destCityId = _cities.firstWhere((c) => c.id != _originCityId).id;
+    }
+  }
+
+  Future<void> _loadCities() async {
+    if (!mounted) return;
+    setState(() => _citiesLoading = true);
+    try {
+      final list = await ref.read(ethiotransitRepositoryProvider).listCities();
+      if (!mounted) return;
+      setState(() {
+        _cities = list;
+        _applyDefaultCities();
+        _citiesLoading = false;
+      });
+      await _reloadOriginStations();
+      await _reloadDestStations();
+    } catch (_) {
+      if (mounted) setState(() => _citiesLoading = false);
+    }
+  }
+
+  Future<void> _reloadOriginStations() async {
+    final id = _originCityId;
+    if (id == null || id.isEmpty) {
+      if (mounted) setState(() => _originStations = []);
+      return;
+    }
+    try {
+      final list =
+          await ref.read(ethiotransitRepositoryProvider).listStationsForCity(id);
+      if (mounted) setState(() => _originStations = list);
+    } catch (_) {
+      if (mounted) setState(() => _originStations = []);
+    }
+  }
+
+  Future<void> _reloadDestStations() async {
+    final id = _destCityId;
+    if (id == null || id.isEmpty) {
+      if (mounted) setState(() => _destStations = []);
+      return;
+    }
+    try {
+      final list =
+          await ref.read(ethiotransitRepositoryProvider).listStationsForCity(id);
+      if (mounted) setState(() => _destStations = list);
+    } catch (_) {
+      if (mounted) setState(() => _destStations = []);
+    }
   }
 
   void _search() {
-    if (_from.text.trim().isEmpty || _to.text.trim().isEmpty) return;
+    final oId = _originCityId;
+    final dId = _destCityId;
+    final on = _cityName(oId);
+    final dn = _cityName(dId);
+    if (on == null || dn == null || oId == dId) return;
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
         builder: (_) => SearchResultsScreen(
-          origin: _from.text.trim(),
-          destination: _to.text.trim(),
+          origin: on,
+          destination: dn,
           travelDate: _date,
+          originStationId: _originStationId,
+          destinationStationId: _destStationId,
         ),
       ),
     );
@@ -184,27 +273,115 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     style: Theme.of(context).textTheme.labelSmall,
                                   ),
                                   const SizedBox(height: 14),
-                                  TextField(
-                                    controller: _from,
-                                    decoration: InputDecoration(
-                                      labelText: 'From',
-                                      prefixIcon: Icon(
-                                        Icons.trip_origin_rounded,
-                                        color: AppColors.ethGreen.withValues(alpha: 0.9),
+                                  if (_citiesLoading)
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(vertical: 12),
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          color: AppColors.ethGreen,
+                                          strokeWidth: 2,
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  TextField(
-                                    controller: _to,
-                                    decoration: InputDecoration(
-                                      labelText: 'To',
-                                      prefixIcon: Icon(
-                                        Icons.place_rounded,
-                                        color: AppColors.ethYellow.withValues(alpha: 0.95),
+                                    )
+                                  else ...[
+                                    DropdownButtonFormField<String>(
+                                      value: _originCityId,
+                                      decoration: InputDecoration(
+                                        labelText: 'From (city)',
+                                        prefixIcon: Icon(
+                                          Icons.trip_origin_rounded,
+                                          color: AppColors.ethGreen.withValues(alpha: 0.9),
+                                        ),
                                       ),
+                                      items: _cities
+                                          .map(
+                                            (c) => DropdownMenuItem(
+                                              value: c.id,
+                                              child: Text(c.name),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: _cities.isEmpty
+                                          ? null
+                                          : (v) {
+                                              setState(() {
+                                                _originCityId = v;
+                                                _originStationId = null;
+                                              });
+                                              _reloadOriginStations();
+                                            },
                                     ),
-                                  ),
+                                    const SizedBox(height: 12),
+                                    DropdownButtonFormField<String?>(
+                                      value: _originStationId,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Origin terminal (optional)',
+                                      ),
+                                      items: [
+                                        const DropdownMenuItem<String?>(
+                                          value: null,
+                                          child: Text('Any terminal'),
+                                        ),
+                                        ..._originStations.map(
+                                          (s) => DropdownMenuItem(
+                                            value: s.id,
+                                            child: Text(s.name),
+                                          ),
+                                        ),
+                                      ],
+                                      onChanged:
+                                          _originStations.isEmpty ? null : (v) => setState(() => _originStationId = v),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    DropdownButtonFormField<String>(
+                                      value: _destCityId,
+                                      decoration: InputDecoration(
+                                        labelText: 'To (city)',
+                                        prefixIcon: Icon(
+                                          Icons.place_rounded,
+                                          color: AppColors.ethYellow.withValues(alpha: 0.95),
+                                        ),
+                                      ),
+                                      items: _cities
+                                          .map(
+                                            (c) => DropdownMenuItem(
+                                              value: c.id,
+                                              child: Text(c.name),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: _cities.isEmpty
+                                          ? null
+                                          : (v) {
+                                              setState(() {
+                                                _destCityId = v;
+                                                _destStationId = null;
+                                              });
+                                              _reloadDestStations();
+                                            },
+                                    ),
+                                    const SizedBox(height: 12),
+                                    DropdownButtonFormField<String?>(
+                                      value: _destStationId,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Destination terminal (optional)',
+                                      ),
+                                      items: [
+                                        const DropdownMenuItem<String?>(
+                                          value: null,
+                                          child: Text('Any terminal'),
+                                        ),
+                                        ..._destStations.map(
+                                          (s) => DropdownMenuItem(
+                                            value: s.id,
+                                            child: Text(s.name),
+                                          ),
+                                        ),
+                                      ],
+                                      onChanged:
+                                          _destStations.isEmpty ? null : (v) => setState(() => _destStationId = v),
+                                    ),
+                                  ],
                                   const SizedBox(height: 12),
                                   Material(
                                     color: dark ? const Color(0xFF0D0D0D) : Colors.grey.shade50,
@@ -278,9 +455,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           return ActionChip(
                             avatar: Icon(Icons.route_rounded, size: 18, color: AppColors.ethGreenNeon),
                             label: Text('${r.origin} → ${r.destination}'),
-                            onPressed: () {
-                              _from.text = r.origin;
-                              _to.text = r.destination;
+                            onPressed: () async {
+                              final o = _cityByName(r.origin);
+                              final d = _cityByName(r.destination);
+                              if (o == null || d == null) return;
+                              setState(() {
+                                _originCityId = o.id;
+                                _destCityId = d.id;
+                                _originStationId = null;
+                                _destStationId = null;
+                              });
+                              await _reloadOriginStations();
+                              await _reloadDestStations();
+                              if (!context.mounted) return;
                               _search();
                             },
                           );

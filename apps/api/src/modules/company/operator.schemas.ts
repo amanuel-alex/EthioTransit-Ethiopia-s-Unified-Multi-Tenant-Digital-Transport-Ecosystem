@@ -16,15 +16,15 @@ export const updateBusSchema = z.object({
 });
 
 export const createRouteSchema = z.object({
-  origin: z.string().min(1).max(128),
-  destination: z.string().min(1).max(128),
+  originStationId: z.string().min(1),
+  destinationStationId: z.string().min(1),
   distanceKm: z.number().positive(),
   pricePerKm: z.number().nonnegative().optional().nullable(),
 });
 
 export const updateRouteSchema = z.object({
-  origin: z.string().min(1).max(128).optional(),
-  destination: z.string().min(1).max(128).optional(),
+  originStationId: z.string().min(1).optional(),
+  destinationStationId: z.string().min(1).optional(),
   distanceKm: z.number().positive().optional(),
   pricePerKm: z.number().nonnegative().nullable().optional(),
 });

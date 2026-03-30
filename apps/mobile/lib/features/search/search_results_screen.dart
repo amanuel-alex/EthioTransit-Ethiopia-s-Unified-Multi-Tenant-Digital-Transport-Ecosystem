@@ -15,11 +15,15 @@ class SearchResultsScreen extends ConsumerStatefulWidget {
     required this.origin,
     required this.destination,
     required this.travelDate,
+    this.originStationId,
+    this.destinationStationId,
   });
 
   final String origin;
   final String destination;
   final DateTime travelDate;
+  final String? originStationId;
+  final String? destinationStationId;
 
   @override
   ConsumerState<SearchResultsScreen> createState() => _SearchResultsScreenState();
@@ -39,6 +43,8 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
           origin: widget.origin,
           destination: widget.destination,
           travelDate: widget.travelDate,
+          originStationId: widget.originStationId,
+          destinationStationId: widget.destinationStationId,
         );
   }
 

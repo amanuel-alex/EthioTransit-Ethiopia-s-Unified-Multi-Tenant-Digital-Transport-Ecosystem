@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/api_constants.dart';
 import '../core/models/auth_session.dart';
 import '../core/models/booking_models.dart';
+import '../core/models/location_models.dart';
 import '../core/models/route_search_row.dart';
 import '../core/models/schedule_detail.dart';
 import '../core/storage/token_storage.dart';
@@ -131,16 +132,50 @@ class EthiotransitRepository {
 
   Future<void> logout() => _storage.clear();
 
+  Future<List<CityListItem>> listCities() async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>('/locations/cities');
+      final list = res.data!['data'] as List<dynamic>;
+      return list
+          .map((e) => CityListItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _toApi(e);
+    }
+  }
+
+  Future<List<StationListItem>> listStationsForCity(String cityId) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/locations/stations',
+        queryParameters: {'cityId': cityId},
+      );
+      final data = res.data!['data'] as Map<String, dynamic>;
+      final stations = data['stations'] as List<dynamic>;
+      return stations
+          .map((e) => StationListItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _toApi(e);
+    }
+  }
+
   Future<List<RouteSearchRow>> searchRoutes({
     required String origin,
     required String destination,
     String? date,
+    String? originStationId,
+    String? destinationStationId,
   }) async {
     try {
       final q = <String, dynamic>{
         'origin': origin,
         'destination': destination,
         if (date != null && date.isNotEmpty) 'date': date,
+        if (originStationId != null && originStationId.isNotEmpty)
+          'originStationId': originStationId,
+        if (destinationStationId != null && destinationStationId.isNotEmpty)
+          'destinationStationId': destinationStationId,
       };
       final res = await _dio.get<Map<String, dynamic>>('/routes/search', queryParameters: q);
       final list = res.data!['data'] as List<dynamic>;
@@ -185,12 +220,21 @@ class EthiotransitRepository {
     required String origin,
     required String destination,
     required DateTime travelDate,
+    String? originStationId,
+    String? destinationStationId,
   }) async {
+    final day =
+        '${travelDate.year.toString().padLeft(4, '0')}-${travelDate.month.toString().padLeft(2, '0')}-${travelDate.day.toString().padLeft(2, '0')}';
+    final bothStations = originStationId != null &&
+        originStationId.isNotEmpty &&
+        destinationStationId != null &&
+        destinationStationId.isNotEmpty;
     final routes = await searchRoutes(
       origin: origin,
       destination: destination,
-      date:
-          '${travelDate.year.toString().padLeft(4, '0')}-${travelDate.month.toString().padLeft(2, '0')}-${travelDate.day.toString().padLeft(2, '0')}',
+      date: day,
+      originStationId: bothStations ? originStationId : null,
+      destinationStationId: bothStations ? destinationStationId : null,
     );
     if (routes.isEmpty) return [];
     final batches = await Future.wait(
@@ -303,8 +347,8 @@ class EthiotransitRepository {
         data: {
           'bookingId': bookingId,
           'email': email,
-          'firstName': ?firstName,
-          'lastName': ?lastName,
+          if (firstName != null) 'firstName': firstName,
+          if (lastName != null) 'lastName': lastName,
         },
       );
       return res.data!;

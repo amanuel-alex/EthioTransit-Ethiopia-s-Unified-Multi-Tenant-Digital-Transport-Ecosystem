@@ -120,7 +120,7 @@ class TripCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  '${s.route.origin} → ${s.route.destination}',
+                  s.route.routeShort,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -145,7 +145,8 @@ class TripCard extends StatelessWidget {
                                   ),
                             ),
                             Text(
-                              s.route.origin.toUpperCase(),
+                              (s.route.originStation?.name ?? s.route.origin)
+                                  .toUpperCase(),
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: Colors.grey.shade500,
                                     fontWeight: FontWeight.w600,
@@ -189,7 +190,9 @@ class TripCard extends StatelessWidget {
                                   ),
                             ),
                             Text(
-                              s.route.destination.toUpperCase(),
+                              (s.route.destinationStation?.name ??
+                                      s.route.destination)
+                                  .toUpperCase(),
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: Colors.grey.shade500,
                                     fontWeight: FontWeight.w600,

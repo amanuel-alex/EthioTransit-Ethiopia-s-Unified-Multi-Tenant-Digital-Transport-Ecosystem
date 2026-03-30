@@ -16,6 +16,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -31,6 +38,7 @@ import {
   deleteRouteAction,
   updateRouteAction,
 } from "@/lib/server/actions/operator";
+import { routeLineLabel, type RouteWithStations } from "@/lib/route-label";
 
 type RouteRow = {
   id: string;
@@ -38,6 +46,24 @@ type RouteRow = {
   destination: string;
   distanceKm: unknown;
   pricePerKm: unknown | null;
+  originStationId?: string | null;
+  destinationStationId?: string | null;
+  originStation?: RouteWithStations["originStation"];
+  destinationStation?: RouteWithStations["destinationStation"];
+};
+
+type CityRow = {
+  id: string;
+  name: string;
+  slug: string;
+  _count: { stations: number };
+};
+
+type StationRow = {
+  id: string;
+  name: string;
+  address: string | null;
+  city: { id: string; name: string; slug: string };
 };
 
 export default function OperatorRoutesPage() {
@@ -45,16 +71,21 @@ export default function OperatorRoutesPage() {
   const { user, logout } = useAuth();
   const api = useApi();
   const [rows, setRows] = useState<RouteRow[] | null>(null);
+  const [cities, setCities] = useState<CityRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<RouteRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    origin: "",
-    destination: "",
+    originCityId: "",
+    destCityId: "",
+    originStationId: "",
+    destinationStationId: "",
     distanceKm: 100,
     pricePerKm: "" as string,
   });
+  const [originStations, setOriginStations] = useState<StationRow[]>([]);
+  const [destStations, setDestStations] = useState<StationRow[]>([]);
 
   useEffect(() => {
     if (user?.role && user.role !== "COMPANY") router.replace("/home");
@@ -83,11 +114,66 @@ export default function OperatorRoutesPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await api.listCities();
+        if (!cancelled) setCities(data);
+      } catch {
+        if (!cancelled) setCities([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
+
+  useEffect(() => {
+    if (!form.originCityId) {
+      setOriginStations([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await api.listStations(form.originCityId);
+        if (!cancelled) setOriginStations(data.stations);
+      } catch {
+        if (!cancelled) setOriginStations([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [api, form.originCityId]);
+
+  useEffect(() => {
+    if (!form.destCityId) {
+      setDestStations([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await api.listStations(form.destCityId);
+        if (!cancelled) setDestStations(data.stations);
+      } catch {
+        if (!cancelled) setDestStations([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [api, form.destCityId]);
+
   const openCreate = () => {
     setEditing(null);
     setForm({
-      origin: "",
-      destination: "",
+      originCityId: "",
+      destCityId: "",
+      originStationId: "",
+      destinationStationId: "",
       distanceKm: 100,
       pricePerKm: "",
     });
@@ -96,9 +182,13 @@ export default function OperatorRoutesPage() {
 
   const openEdit = (row: RouteRow) => {
     setEditing(row);
+    const oCity = row.originStation?.city?.id ?? "";
+    const dCity = row.destinationStation?.city?.id ?? "";
     setForm({
-      origin: row.origin,
-      destination: row.destination,
+      originCityId: oCity,
+      destCityId: dCity,
+      originStationId: row.originStationId ?? "",
+      destinationStationId: row.destinationStationId ?? "",
       distanceKm: Number(row.distanceKm),
       pricePerKm:
         row.pricePerKm != null ? String(row.pricePerKm) : "",
@@ -118,18 +208,35 @@ export default function OperatorRoutesPage() {
         setSaving(false);
         return;
       }
+      if (
+        !form.originStationId.trim() ||
+        !form.destinationStationId.trim()
+      ) {
+        toast.error("Select origin and destination terminals");
+        setSaving(false);
+        return;
+      }
+      if (
+        form.originCityId &&
+        form.destCityId &&
+        form.originCityId === form.destCityId
+      ) {
+        toast.error("Origin and destination must be in different cities");
+        setSaving(false);
+        return;
+      }
       if (editing) {
         await updateRouteAction(editing.id, {
-          origin: form.origin.trim(),
-          destination: form.destination.trim(),
+          originStationId: form.originStationId.trim(),
+          destinationStationId: form.destinationStationId.trim(),
           distanceKm: form.distanceKm,
           pricePerKm: price,
         });
         toast.success("Route updated");
       } else {
         await createRouteAction({
-          origin: form.origin.trim(),
-          destination: form.destination.trim(),
+          originStationId: form.originStationId.trim(),
+          destinationStationId: form.destinationStationId.trim(),
           distanceKm: form.distanceKm,
           pricePerKm: price ?? undefined,
         });
@@ -145,7 +252,12 @@ export default function OperatorRoutesPage() {
   };
 
   const remove = async (row: RouteRow) => {
-    if (!confirm(`Delete route ${row.origin} → ${row.destination}?`)) return;
+    if (
+      !confirm(
+        `Delete route ${routeLineLabel(row)}?`,
+      )
+    )
+      return;
     try {
       await deleteRouteAction(row.id);
       toast.success("Route deleted");
@@ -163,7 +275,8 @@ export default function OperatorRoutesPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">Routes</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Origin, destination, distance, and optional price per km.
+            Boarding and alighting terminals, distance, and optional price per
+            km.
           </p>
         </div>
         <Button
@@ -184,8 +297,8 @@ export default function OperatorRoutesPage() {
           <Table>
             <TableHeader>
               <TableRow className="border-white/10 hover:bg-transparent">
-                <TableHead className="text-zinc-400">From</TableHead>
-                <TableHead className="text-zinc-400">To</TableHead>
+                <TableHead className="text-zinc-400">Route</TableHead>
+                <TableHead className="text-zinc-400">Cities</TableHead>
                 <TableHead className="text-zinc-400">Km</TableHead>
                 <TableHead className="text-zinc-400">ETB / km</TableHead>
                 <TableHead className="w-[100px] text-right text-zinc-400">
@@ -196,10 +309,12 @@ export default function OperatorRoutesPage() {
             <TableBody>
               {(rows ?? []).map((r) => (
                 <TableRow key={r.id} className="border-white/10">
-                  <TableCell className="font-medium text-white">
-                    {r.origin}
+                  <TableCell className="max-w-[220px] font-medium text-white">
+                    {routeLineLabel(r)}
                   </TableCell>
-                  <TableCell className="text-zinc-300">{r.destination}</TableCell>
+                  <TableCell className="text-zinc-300">
+                    {r.origin} → {r.destination}
+                  </TableCell>
                   <TableCell className="tabular-nums text-zinc-300">
                     {String(r.distanceKm)}
                   </TableCell>
@@ -234,7 +349,7 @@ export default function OperatorRoutesPage() {
       </OperatorGlassCard>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="border-white/10 bg-[#0a0a0a] text-zinc-100 sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-white/10 bg-[#0a0a0a] text-zinc-100 sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white">
               {editing ? "Edit route" : "New route"}
@@ -242,24 +357,96 @@ export default function OperatorRoutesPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label className="text-zinc-300">From</Label>
-              <Input
-                value={form.origin}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, origin: e.target.value }))
+              <Label className="text-zinc-300">Origin city</Label>
+              <Select
+                value={form.originCityId || undefined}
+                onValueChange={(id) =>
+                  setForm((f) => ({
+                    ...f,
+                    originCityId: id,
+                    originStationId: "",
+                  }))
                 }
-                className="border-white/10 bg-zinc-900/80 text-white"
-              />
+                disabled={!cities?.length}
+              >
+                <SelectTrigger className="border-white/10 bg-zinc-900/80 text-white">
+                  <SelectValue placeholder="Select city" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(cities ?? []).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-zinc-300">To</Label>
-              <Input
-                value={form.destination}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, destination: e.target.value }))
+              <Label className="text-zinc-300">Boarding terminal</Label>
+              <Select
+                value={form.originStationId || undefined}
+                onValueChange={(id) =>
+                  setForm((f) => ({ ...f, originStationId: id }))
                 }
-                className="border-white/10 bg-zinc-900/80 text-white"
-              />
+                disabled={!form.originCityId || originStations.length === 0}
+              >
+                <SelectTrigger className="border-white/10 bg-zinc-900/80 text-white">
+                  <SelectValue placeholder="Select terminal" />
+                </SelectTrigger>
+                <SelectContent>
+                  {originStations.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-zinc-300">Destination city</Label>
+              <Select
+                value={form.destCityId || undefined}
+                onValueChange={(id) =>
+                  setForm((f) => ({
+                    ...f,
+                    destCityId: id,
+                    destinationStationId: "",
+                  }))
+                }
+                disabled={!cities?.length}
+              >
+                <SelectTrigger className="border-white/10 bg-zinc-900/80 text-white">
+                  <SelectValue placeholder="Select city" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(cities ?? []).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-zinc-300">Alighting terminal</Label>
+              <Select
+                value={form.destinationStationId || undefined}
+                onValueChange={(id) =>
+                  setForm((f) => ({ ...f, destinationStationId: id }))
+                }
+                disabled={!form.destCityId || destStations.length === 0}
+              >
+                <SelectTrigger className="border-white/10 bg-zinc-900/80 text-white">
+                  <SelectValue placeholder="Select terminal" />
+                </SelectTrigger>
+                <SelectContent>
+                  {destStations.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-zinc-300">Distance (km)</Label>
@@ -298,9 +485,12 @@ export default function OperatorRoutesPage() {
             <Button
               disabled={
                 saving ||
-                !form.origin.trim() ||
-                !form.destination.trim() ||
-                form.distanceKm < 1
+                !form.originStationId.trim() ||
+                !form.destinationStationId.trim() ||
+                form.distanceKm < 1 ||
+                (Boolean(form.originCityId) &&
+                  Boolean(form.destCityId) &&
+                  form.originCityId === form.destCityId)
               }
               onClick={() => void submit()}
               className="bg-[hsl(152,65%,44%)] font-semibold text-zinc-950"

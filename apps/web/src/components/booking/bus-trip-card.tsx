@@ -6,6 +6,7 @@ import { ArrowRight, Bus, Clock, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ScheduleDetail } from "@/lib/api/types";
+import { routeShortLabel } from "@/lib/route-label";
 import { cn } from "@/lib/utils";
 
 /** Coach hero — sharp on retina & grid cells (`remotePatterns` → unsplash.com). */
@@ -41,7 +42,9 @@ export function BusTripCard({ trip, onSelectSeat }: Props) {
   const { schedule, availableSeats } = detail;
   const seatsLeft = availableSeats.length;
   const soldOut = seatsLeft === 0;
-  const { origin, destination } = schedule.route;
+  const route = schedule.route;
+  const routeLabel = routeShortLabel(route);
+  const routeOriginDest = `${route.origin} → ${route.destination}`;
 
   return (
     <motion.article
@@ -66,7 +69,7 @@ export function BusTripCard({ trip, onSelectSeat }: Props) {
       >
         <Image
           src={TRIP_CARD_IMAGE}
-          alt={`Coach · ${origin} to ${destination}`}
+          alt={`Coach · ${routeLabel}`}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           priority={false}
@@ -91,10 +94,13 @@ export function BusTripCard({ trip, onSelectSeat }: Props) {
             Route
           </p>
           <p className="mt-0.5 text-lg font-bold leading-snug tracking-tight text-white drop-shadow-md sm:text-xl">
-            <span>{origin}</span>
-            <span className="mx-1.5 font-light text-white/80">→</span>
-            <span>{destination}</span>
+            {routeLabel}
           </p>
+          {routeLabel !== routeOriginDest ? (
+            <p className="mt-1 text-xs font-medium text-white/75">
+              {routeOriginDest}
+            </p>
+          ) : null}
         </div>
 
         <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2 sm:left-4 sm:top-4">
