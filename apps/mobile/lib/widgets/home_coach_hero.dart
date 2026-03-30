@@ -2,173 +2,189 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// Unsplash photo (bundled): coach on the road — same vibe as web trip cards.
-/// https://unsplash.com/photos/photo-1544620347-c4fd4a3d5957
+/// Coach — Unsplash (bundled). https://unsplash.com/photos/photo-1544620347-c4fd4a3d5957
 const String kCoachHeroAsset = 'assets/images/coach_hero.jpg';
 
+/// Car — Unsplash (bundled). https://unsplash.com/photos/photo-1503376780353-7e6692767b70
+const String kCarHeroAsset = 'assets/images/car_hero.jpg';
+
+/// Side-by-side **bus** + **car** heroes: full photos with labels only in a bottom strip.
+class TransportHeroRow extends StatelessWidget {
+  const TransportHeroRow({super.key, required this.dark});
+
+  final bool dark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _TransportTile(
+            dark: dark,
+            asset: kCoachHeroAsset,
+            imageAlignment: const Alignment(0.55, -0.06),
+            icon: Icons.directions_bus_filled_rounded,
+            badge: 'Intercity',
+            title: 'Bus',
+            subtitle: 'City ↔ city · terminals',
+            errorChild: ColoredBox(
+              color: AppColors.ethGreen.withValues(alpha: dark ? 0.2 : 0.12),
+              child: Center(
+                child: CustomPaint(
+                  size: const Size(160, 80),
+                  painter: _CoachIllustrationPainter(dark: dark),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _TransportTile(
+            dark: dark,
+            asset: kCarHeroAsset,
+            imageAlignment: const Alignment(0.1, 0.15),
+            icon: Icons.directions_car_rounded,
+            badge: 'Car',
+            title: 'Car',
+            subtitle: 'Style on the open road',
+            errorChild: ColoredBox(
+              color: AppColors.ethGreen.withValues(alpha: dark ? 0.18 : 0.1),
+              child: Center(
+                child: Icon(
+                  Icons.directions_car_rounded,
+                  size: 56,
+                  color: AppColors.ethGreenNeon.withValues(alpha: 0.65),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Kept for existing imports — renders [TransportHeroRow].
 class HomeCoachHero extends StatelessWidget {
   const HomeCoachHero({super.key, required this.dark});
 
   final bool dark;
 
   @override
-  Widget build(BuildContext context) {
-    final textPrimary = dark ? Colors.white : const Color(0xFF0F172A);
-    final textSecondary = dark ? const Color(0xFFE2E8F0) : const Color(0xFF475569);
+  Widget build(BuildContext context) => TransportHeroRow(dark: dark);
+}
 
+class _TransportTile extends StatelessWidget {
+  const _TransportTile({
+    required this.dark,
+    required this.asset,
+    required this.imageAlignment,
+    required this.icon,
+    required this.badge,
+    required this.title,
+    required this.subtitle,
+    required this.errorChild,
+  });
+
+  final bool dark;
+  final String asset;
+  final Alignment imageAlignment;
+  final IconData icon;
+  final String badge;
+  final String title;
+  final String subtitle;
+  final Widget errorChild;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
+      height: 168,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: AppColors.ethGreenNeon.withValues(alpha: dark ? 0.28 : 0.22),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.ethGreen.withValues(alpha: dark ? 0.14 : 0.1),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
+            color: AppColors.ethGreen.withValues(alpha: dark ? 0.12 : 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(21),
-        child: SizedBox(
-          height: 152,
-          width: double.infinity,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset(
-                kCoachHeroAsset,
-                fit: BoxFit.cover,
-                alignment: const Alignment(0.32, -0.05),
-                errorBuilder: (context, error, stackTrace) => ColoredBox(
-                  color: AppColors.ethGreen.withValues(alpha: dark ? 0.2 : 0.12),
-                  child: Center(
-                    child: CustomPaint(
-                      size: const Size(232, 104),
-                      painter: _CoachIllustrationPainter(dark: dark),
-                    ),
-                  ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            asset,
+            fit: BoxFit.cover,
+            alignment: imageAlignment,
+            errorBuilder: (context, error, stackTrace) => errorChild,
+          ),
+          // Bottom readability strip only — vehicle stays visible above
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: dark ? 0.55 : 0.5),
+                    Colors.black.withValues(alpha: dark ? 0.82 : 0.78),
+                  ],
+                  stops: const [0.0, 0.45, 1.0],
                 ),
               ),
-              // Readability: strong scrim on the left for copy
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: dark
-                        ? [
-                            const Color(0xE6161820),
-                            const Color(0x99161820),
-                            const Color(0x33161820),
-                            Colors.transparent,
-                          ]
-                        : [
-                            const Color(0xF5F8FAFC),
-                            const Color(0xCCF8FAFC),
-                            const Color(0x66FFFFFF),
-                            Colors.transparent,
-                          ],
-                    stops: const [0.0, 0.35, 0.62, 1.0],
-                  ),
-                ),
-              ),
-              // Brand tint at bottom
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: 48,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        AppColors.ethGreenDark.withValues(alpha: dark ? 0.35 : 0.18),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 16,
-                top: 12,
-                right: 100,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 20, 10, 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: dark
-                                ? Colors.black.withValues(alpha: 0.35)
-                                : Colors.white.withValues(alpha: 0.85),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: AppColors.ethGreenNeon.withValues(alpha: 0.45),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.directions_bus_filled_rounded,
-                                size: 16,
-                                color: AppColors.ethGreenNeon.withValues(alpha: 0.95),
+                        Icon(icon, size: 15, color: AppColors.ethGreenNeon),
+                        const SizedBox(width: 5),
+                        Text(
+                          badge,
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: AppColors.ethGreenNeon,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.35,
+                                fontSize: 10,
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Intercity',
-                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                      color: AppColors.ethGreenNeon,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.4,
-                                    ),
-                              ),
-                            ],
-                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
-                      'Travel in comfort',
+                      title,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: Colors.white,
                             fontWeight: FontWeight.w800,
-                            color: textPrimary,
-                            letterSpacing: -0.3,
-                            shadows: dark
-                                ? [
-                                    Shadow(
-                                      color: Colors.black.withValues(alpha: 0.65),
-                                      blurRadius: 10,
-                                    ),
-                                  ]
-                                : null,
+                            letterSpacing: -0.2,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withValues(alpha: 0.45),
+                                blurRadius: 6,
+                              ),
+                            ],
                           ),
                     ),
-                    const SizedBox(height: 2),
                     Text(
-                      'Pick your city & terminal — we’ll find the bus.',
+                      subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: textSecondary,
-                            height: 1.25,
-                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.88),
+                            fontSize: 11,
+                            height: 1.2,
                             fontWeight: FontWeight.w500,
-                            shadows: dark
-                                ? [
-                                    Shadow(
-                                      color: Colors.black.withValues(alpha: 0.55),
-                                      blurRadius: 8,
-                                    ),
-                                  ]
-                                : null,
                           ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -176,9 +192,9 @@ class HomeCoachHero extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

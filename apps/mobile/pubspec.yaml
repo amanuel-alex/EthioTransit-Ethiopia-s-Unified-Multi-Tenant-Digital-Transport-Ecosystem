@@ -29,3 +29,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/coach_hero.jpg
+    - assets/images/car_hero.jpg
