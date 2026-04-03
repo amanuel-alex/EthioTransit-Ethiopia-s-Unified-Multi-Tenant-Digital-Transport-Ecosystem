@@ -1,3 +1,6 @@
+/** UI language (messages + button labels). */
+export type BotLocale = "en" | "am" | "om";
+
 /** In-memory session per Telegram user (lost on bot restart). */
 export type SearchStep =
   | "idle"
@@ -38,6 +41,7 @@ export type ScheduleHit = {
 };
 
 export interface BotSession {
+  locale: BotLocale;
   step: SearchStep;
   accessToken: string | null;
   refreshToken: string | null;
@@ -62,6 +66,7 @@ export interface BotSession {
 
 export function emptySession(): BotSession {
   return {
+    locale: "en",
     step: "idle",
     accessToken: null,
     refreshToken: null,
