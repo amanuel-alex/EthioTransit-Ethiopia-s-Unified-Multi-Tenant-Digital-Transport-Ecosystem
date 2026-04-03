@@ -2,6 +2,18 @@
 
 EthioTransit is a full-stack, multi-tenant transport platform. This repository is a **pnpm + Turborepo** monorepo: Next.js for the web UI, Flutter for mobile, Node.js for the REST API (M-Pesa and Chapa), and a Telegram bot (grammY).
 
+## Screenshots
+
+![Landing Page Header](screenshots/screenshot_5.png)
+
+![Features Section](screenshots/screenshot_1.png)
+
+![Delivery Dashboard](screenshots/screenshot_2.png)
+
+![Admin Dashboard](screenshots/screenshot_3.png)
+
+![Organizer Dashboard](screenshots/screenshot_4.png)
+
 ## Layout
 
 ```
