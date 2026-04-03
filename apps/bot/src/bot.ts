@@ -49,8 +49,24 @@ bot.use((ctx, next) => {
 
 registerAllCommands(bot);
 
-bot.launch().then(() => {
-  console.log("[ethiotransit-bot] Telegraf long polling — EthioTransit Transport Booking Bot");
+bot
+  .launch({
+    /** Webhook left on from hosting trials often causes polling to see no updates. */
+    dropPendingUpdates: true,
+  })
+  .then(() => {
+    const me = bot.botInfo;
+    console.log(
+      `[ethiotransit-bot] Polling OK — @${me?.username ?? me?.id ?? "?"} (open Telegram and send /start)`,
+    );
+  })
+  .catch((err: unknown) => {
+    console.error("[ethiotransit-bot] Failed to start (check token & network):", err);
+    process.exit(1);
+  });
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[ethiotransit-bot] Unhandled rejection:", reason);
 });
 
 process.once("SIGINT", () => bot.stop("SIGINT"));

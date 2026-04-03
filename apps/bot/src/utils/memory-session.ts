@@ -11,6 +11,8 @@ export function sessionMiddleware(): MiddlewareFn<Context> {
   return async (ctx, next) => {
     const id = getSessionKey(ctx);
     if (id == null) {
+      // No user id (some update types): still attach session so handlers don't crash.
+      (ctx as Context & { ethioSession: BotSession }).ethioSession = emptySession();
       await next();
       return;
     }

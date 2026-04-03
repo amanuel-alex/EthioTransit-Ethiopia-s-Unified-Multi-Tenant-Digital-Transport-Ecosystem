@@ -13,17 +13,22 @@ export function languagePickerKeyboard() {
       Markup.button.callback("🇪🇹 አማርኛ", "lang:am"),
     ],
     [Markup.button.callback("Afaan Oromoo", "lang:om")],
+    [Markup.button.callback("🏠", "m:h")],
   ]);
 }
 
-export function mainMenuKeyboard(locale: BotLocale) {
+/** Home: language strip + core actions (used on /start and after cancel). */
+export function startScreenKeyboard(locale: BotLocale) {
   return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("🇬🇧 EN", "lang:en"),
+      Markup.button.callback("አማርኛ", "lang:am"),
+      Markup.button.callback("Oromoo", "lang:om"),
+    ],
     [Markup.button.callback(tr(locale, "btn_search"), "m:s")],
     [Markup.button.callback(tr(locale, "btn_bookings"), "m:b")],
-    [
-      Markup.button.callback(tr(locale, "btn_login"), "m:l"),
-      Markup.button.callback(tr(locale, "btn_language"), "m:g"),
-    ],
+    [Markup.button.callback(tr(locale, "btn_login"), "m:l")],
+    [Markup.button.callback(tr(locale, "btn_language"), "m:g")],
   ]);
 }
 
@@ -111,14 +116,18 @@ export function routesKeyboard(routes: RouteSearchHit[]) {
   return Markup.inlineKeyboard(rows);
 }
 
-export function schedulesKeyboard(schedules: ScheduleHit[]) {
+export function schedulesKeyboard(locale: BotLocale, schedules: ScheduleHit[]) {
   const rows: ReturnType<typeof Markup.button.callback>[][] = [];
   const cap = Math.min(schedules.length, 15);
   for (let i = 0; i < cap; i++) {
     const sch = schedules[i]!;
     const t = formatEtLabel(sch.schedule.departsAt);
-    const seats = sch.availableSeats.length;
-    const label = `${t} · ${sch.schedule.basePrice} ETB · ${seats} seats`;
+    const n = sch.availableSeats.length;
+    const label = tr(locale, "scheduleRow", {
+      time: t,
+      price: String(sch.schedule.basePrice),
+      n,
+    });
     rows.push([Markup.button.callback(label, `sc:${sch.schedule.id}`)]);
   }
   return Markup.inlineKeyboard(rows);
