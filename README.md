@@ -16,13 +16,11 @@ EthioTransit is a full-stack, multi-tenant transport platform. This repository i
 
 ### Mobile App
 
-<p align="center">
-  <img src="screenshots/mobile_login.png" width="19%" />
-  <img src="screenshots/mobile_home.png" width="19%" />
-  <img src="screenshots/mobile_tickets.png" width="19%" />
-  <img src="screenshots/mobile_ticket_qr.png" width="19%" />
-  <img src="screenshots/mobile_profile.png" width="19%" />
-</p>
+![Mobile Login](screenshots/mobile_login.png)
+![Mobile Home](screenshots/mobile_home.png)
+![Mobile Tickets](screenshots/mobile_tickets.png)
+![Mobile Ticket QR](screenshots/mobile_ticket_qr.png)
+![Mobile Profile](screenshots/mobile_profile.png)
 
 ## Layout
 
